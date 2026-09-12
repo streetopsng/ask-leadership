@@ -12,7 +12,7 @@ export default function EmployeeWelcomeView() {
       <header className="flex items-center justify-between px-6 py-5 border-b-[2.5px] border-ink bg-white">
         <button
           type="button"
-          onClick={() => setView('employeeInvite')}
+          onClick={() => setView('landing')}
           className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider font-bold text-ink hover:text-purple-deep cursor-pointer"
         >
           ← Back

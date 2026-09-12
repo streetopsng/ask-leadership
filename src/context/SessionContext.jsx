@@ -8,6 +8,8 @@ import {
   voteFirestoreQuestion,
   markFirestoreQuestionAnswered,
 } from '../firebase/sessionService';
+import { AVATARS } from '../constants/avatars';
+import { SAMPLE_QUESTIONS } from '../constants/seedData';
 
 const SessionContext = createContext(null);
 
@@ -78,7 +80,7 @@ export function SessionProvider({ children }) {
   });
 
   const [view, setView] = useState(() => {
-    if (urlJoinCode) return 'employeeInvite';
+    if (urlJoinCode) return 'employeeWelcome';
     return 'landing';
   });
 
@@ -131,6 +133,23 @@ export function SessionProvider({ children }) {
     }, 2500);
   }, []);
 
+  const switchRole = useCallback((role) => {
+    setDemoRole(role);
+    if (role === 'host') {
+      setView(session.created ? 'hostControl' : 'hostSetup');
+    } else {
+      if (me.joined) setView('room');
+      else if (me.avatar) setView('avatarSelect');
+      else setView('employeeWelcome');
+    }
+  }, [session.created, me.joined, me.avatar]);
+
+  const previewEmployeeFlow = useCallback(() => {
+    setDemoRole('employee');
+    setSession((prev) => ({ ...prev, created: true }));
+    setView('employeeWelcome');
+  }, []);
+
   const activePool = session.questions.filter((q) => !q.answered);
   const submittedCount = session.questions.length;
   const answeredCount = session.questions.filter((q) => q.answered).length;
@@ -160,19 +179,38 @@ export function SessionProvider({ children }) {
       await createFirestoreSession(updated);
     }
 
-    setView('hostReady');
+    showToast('Invitations sent via GummyGum.');
+    setView('hostControl');
   };
 
   const chooseAvatar = (avatarId) => {
     setMe((prev) => ({ ...prev, avatar: avatarId }));
   };
 
+  const getSeedQuestions = () => {
+    const shuffled = [...SAMPLE_QUESTIONS].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 4).map((text, idx) => ({
+      id: uid(),
+      text,
+      avatarId: AVATARS[idx % AVATARS.length].id,
+      votes: 0,
+      answered: false,
+      mine: false,
+      ts: Date.now(),
+    }));
+  };
+
   const confirmEnterRoom = () => {
     setMe((prev) => ({ ...prev, joined: true }));
-    setSession((prev) => ({
-      ...prev,
-      phase: prev.phase === 'setup' || prev.phase === 'invited' ? 'submitting' : prev.phase,
-    }));
+    setSession((prev) => {
+      const nextPhase = prev.phase === 'setup' || prev.phase === 'invited' ? 'submitting' : prev.phase;
+      const questions = prev.questions.length === 0 && !isFirebaseConfigured() ? getSeedQuestions() : prev.questions;
+      return {
+        ...prev,
+        phase: nextPhase,
+        questions,
+      };
+    });
     setView('room');
   };
 
@@ -204,7 +242,10 @@ export function SessionProvider({ children }) {
   };
 
   const openSubmissions = async () => {
-    setSession((prev) => ({ ...prev, phase: 'submitting' }));
+    setSession((prev) => {
+      const questions = prev.questions.length === 0 && !isFirebaseConfigured() ? getSeedQuestions() : prev.questions;
+      return { ...prev, phase: 'submitting', questions };
+    });
     if (isFirebaseConfigured()) {
       await updateFirestoreSessionPhase(session.id, { phase: 'submitting' });
     }
@@ -228,6 +269,9 @@ export function SessionProvider({ children }) {
     setSession((prev) => ({
       ...prev,
       phase: 'voting',
+      questions: prev.questions.map((q) =>
+        !q.answered ? { ...q, votes: q.votes || Math.floor(Math.random() * 39) + 6 } : q
+      ),
     }));
     setMe((prev) => ({ ...prev, votedThisRound: false, justVotedId: null }));
 
@@ -235,6 +279,7 @@ export function SessionProvider({ children }) {
       await updateFirestoreSessionPhase(session.id, { phase: 'voting' });
     }
   };
+
 
   const voteQuestion = async (qid) => {
     if (me.votedThisRound) return;
@@ -400,6 +445,8 @@ export function SessionProvider({ children }) {
         nextQuestion,
         endSession,
         restartDemo,
+        switchRole,
+        previewEmployeeFlow,
       }}
     >
       {children}

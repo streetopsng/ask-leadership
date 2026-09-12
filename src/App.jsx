@@ -10,6 +10,7 @@ import AvatarSelectView from './components/views/AvatarSelectView';
 import RoomView from './components/views/RoomView';
 import ClosingView from './components/views/ClosingView';
 import ToastStack from './components/common/ToastStack';
+import RoleSwitcher from './components/common/RoleSwitcher';
 
 function MainApp() {
   const { view } = useSession();
@@ -43,6 +44,7 @@ function MainApp() {
     <div className="min-h-screen bg-cream text-ink font-body selection:bg-brand-purple selection:text-ink">
       {renderView()}
       <ToastStack />
+      <RoleSwitcher />
     </div>
   );
 }

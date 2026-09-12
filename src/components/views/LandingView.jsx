@@ -2,9 +2,9 @@ import React from 'react';
 import { useSession } from '../../context/SessionContext';
 import Button from '../common/Button';
 import Waveform from '../common/Waveform';
-import { Pill } from '../common/Pill';
+import { Pill, TagPill } from '../common/Pill';
 import DoodleField from '../common/DoodleField';
-import { MicIcon } from '../../constants/icons';
+import { MicIcon, SparkleIcon } from '../../constants/icons';
 
 const SCATTER_ITEMS = [
   { text: 'PSYCHOLOGICAL SAFETY', pos: 'top-[14%] left-[8%] -rotate-6', color: 'text-muted-ink' },
@@ -20,13 +20,7 @@ const SCATTER_ITEMS = [
 ];
 
 export default function LandingView() {
-  const { setView, setDemoRole, session } = useSession();
-
-  const handleEmployeeClick = () => {
-    setDemoRole('employee');
-    session.created = true;
-    setView('employeeInvite');
-  };
+  const { setView, setDemoRole, previewEmployeeFlow } = useSession();
 
   const handleHostClick = () => {
     setDemoRole('host');
@@ -34,9 +28,9 @@ export default function LandingView() {
   };
 
   return (
-    <div className="relative h-screen max-h-screen overflow-hidden flex flex-col justify-between bg-cream">
+    <div className="relative min-h-screen overflow-x-hidden flex flex-col justify-between bg-cream">
       {/* Top Navigation */}
-      <header className="relative z-10 flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 max-w-6xl mx-auto w-full gap-3 shrink-0">
+      <header className="relative z-10 flex items-center justify-between px-4 sm:px-6 py-4 sm:py-6 max-w-6xl mx-auto w-full gap-3 shrink-0">
         <div className="flex items-center gap-2.5 sm:gap-3">
           <div className="w-8 sm:w-9 h-8 sm:h-9 rounded-full border-[2.5px] border-ink bg-brand-purple flex items-center justify-center shrink-0 shadow-hard-sm">
             <MicIcon className="w-4 sm:w-5 h-4 sm:h-5 text-ink" />
@@ -59,9 +53,9 @@ export default function LandingView() {
       </header>
 
       {/* Hero Field */}
-      <main className="relative flex-1 flex items-center justify-center px-4 sm:px-6 py-4 sm:py-6 overflow-hidden">
+      <main className="relative flex-1 flex items-center justify-center px-4 sm:px-6 py-6 sm:py-10 min-h-[500px]">
         {/* Glow Radial */}
-        <div className="absolute w-[340px] sm:w-[500px] md:w-[640px] h-[340px] sm:h-[500px] md:h-[640px] rounded-full bg-[radial-gradient(circle,rgba(124,77,190,0.18)_0%,rgba(124,77,190,0)_64%)] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="absolute w-[340px] sm:w-[540px] md:w-[720px] h-[340px] sm:h-[540px] md:h-[720px] rounded-full bg-[radial-gradient(circle,rgba(124,77,190,0.16)_0%,rgba(124,77,190,0)_62%)] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
 
         {/* Doodles */}
         <DoodleField />
@@ -80,7 +74,7 @@ export default function LandingView() {
 
         {/* Hero Core Card */}
         <div className="relative z-10 text-center max-w-2xl mx-auto animate-rise my-auto">
-          <div className="inline-flex items-center gap-2 mb-3 sm:mb-4 bg-white border-2 border-ink px-3.5 sm:px-4 py-1.5 rounded-full shadow-hard-sm font-mono text-[11px] sm:text-xs uppercase tracking-widest text-purple-deep font-bold">
+          <div className="inline-flex items-center gap-2 mb-4 bg-white border-2 border-ink px-3.5 sm:px-4 py-1.5 rounded-full shadow-hard-sm font-mono text-[11px] sm:text-xs uppercase tracking-widest text-purple-deep font-bold">
             <MicIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-purple-deep" />
             <span>Anonymous by design</span>
           </div>
@@ -89,23 +83,53 @@ export default function LandingView() {
             Ask <span className="block text-brand-purple">Leadership</span>
           </h1>
 
-          <p className="font-body font-semibold text-sm sm:text-base md:text-lg text-muted-ink max-w-md sm:max-w-lg mx-auto mt-3 sm:mt-5 mb-5 sm:mb-7 leading-relaxed">
+          <p className="font-body font-semibold text-sm sm:text-base md:text-lg text-muted-ink max-w-md sm:max-w-lg mx-auto mt-4 mb-7 leading-relaxed">
             The questions you've been waiting to ask — put to the people who can actually answer them, live.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-xs sm:max-w-none mx-auto">
-            <Button variant="primary" onClick={handleEmployeeClick} className="w-full sm:w-auto">
-              I've been invited →
-            </Button>
-            <Button variant="ghost" onClick={handleHostClick} className="w-full sm:w-auto">
+          <div className="flex items-center justify-center gap-3 sm:gap-4 w-full max-w-xs sm:max-w-none mx-auto">
+            <Button variant="primary" onClick={handleHostClick} className="w-full sm:w-auto">
               Set up a session
             </Button>
           </div>
         </div>
       </main>
 
-      {/* Bottom spacer for clean symmetrical breathing room */}
-      <div className="h-4 sm:h-6 shrink-0" />
+      {/* Landing Footer Cards */}
+      <div className="relative z-10 flex items-stretch justify-center gap-5 px-6 py-6 sm:pb-8 flex-wrap">
+        <div className="bg-white border-[2.5px] border-ink rounded-2xl shadow-hard-md p-5 sm:p-6.5 max-w-[400px] w-full text-left flex flex-col gap-2.5">
+          <TagPill variant="purple" className="self-start">
+            <SparkleIcon className="w-3.5 h-3.5 text-purple-deep" />
+            <span>For hosts</span>
+          </TagPill>
+          <h3 className="font-display font-bold text-lg sm:text-xl text-ink">
+            Run a session
+          </h3>
+          <p className="font-body font-semibold text-xs sm:text-sm text-muted-ink leading-relaxed">
+            Set up the room and GummyGum sends the invites — employees tap theirs and land straight in the lobby, no sign-up required.
+          </p>
+          <div className="mt-1">
+            <Button variant="dark" size="sm" onClick={handleHostClick}>
+              Host experience →
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Demo Strip Prototype Preview */}
+      <div className="demo-strip mx-4 sm:mx-auto">
+        <span className="demo-tag">Prototype preview</span>
+        <p>
+          This screen is what the host sees inside GummyGum — employees never land here in real life, they open their invite email and go straight to the room.
+        </p>
+        <button
+          type="button"
+          onClick={previewEmployeeFlow}
+          className="btn-demo"
+        >
+          Preview the employee experience →
+        </button>
+      </div>
     </div>
   );
 }

@@ -123,3 +123,58 @@
 .stage-frame-stripes {
   background: repeating-linear-gradient(115deg, #5B3690 0 8px, transparent 8px 14px);
 }
+
+/* demo-strip — reviewer-only affordance from new.html */
+.demo-strip {
+  position: relative;
+  z-index: 4;
+  max-width: 460px;
+  margin: 0 auto 50px;
+  text-align: center;
+  padding: 18px 22px;
+  border: 2px dashed rgba(36, 27, 51, 0.5);
+  border-radius: 20px;
+  background: transparent;
+}
+.demo-tag {
+  display: inline-block;
+  font-family: 'Space Mono', 'SFMono-Regular', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6B6178;
+  border: 1px solid rgba(36, 27, 51, 0.5);
+  border-radius: 999px;
+  padding: 4px 10px;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+.demo-strip p {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: #6B6178;
+  line-height: 1.5;
+  font-weight: 600;
+}
+.demo-strip .btn-demo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: 2px dashed #241B33;
+  background: #FFFFFF;
+  color: #241B33;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.15s ease;
+}
+.demo-strip .btn-demo:hover {
+  background: #EFE4F7;
+  box-shadow: none;
+  transform: none;
+}
+

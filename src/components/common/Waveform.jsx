@@ -1,17 +1,6 @@
 import React from 'react';
 
 const BAR_HEIGHTS = ['40%', '100%', '60%', '85%', '50%', '70%', '90%', '55%', '75%'];
-const DELAYS = [
-  'animation-delay-[0s]',
-  'animation-delay-[120ms]',
-  'animation-delay-[240ms]',
-  'animation-delay-[360ms]',
-  'animation-delay-[480ms]',
-  'animation-delay-[600ms]',
-  'animation-delay-[720ms]',
-  'animation-delay-[840ms]',
-  'animation-delay-[960ms]',
-];
 
 export default function Waveform({ count = 6, variant = 'sage', size = 'default', className = '' }) {
   const bgClasses = {

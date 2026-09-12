@@ -1,11 +1,9 @@
 import {
   doc,
   setDoc,
-  getDoc,
   updateDoc,
   onSnapshot,
   arrayUnion,
-  increment,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './config';
