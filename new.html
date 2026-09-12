@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ask Leadership · GummyGum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   TOKENS — extracted design system:
+   warm cream stage, near-black ink borders, hard offset
+   "sticker" shadows, purple/lilac/green/gold accent system,
+   pastel avatar circles, playful rounded display type +
+   mono HUD labels, thin-line doodle iconography, cut-corner
+   bracket frame.
+========================================================= */
+:root{
+  --cream: #F8F3FB;        /* page background — pale lilac-white */
+  --cream-2: #EFE4F7;      /* elevated panel bg */
+  --cream-3: #E4D3F0;      /* deeper elevated / hover */
+  --white: #FFFFFF;
+  --ink: #241B33;          /* border / primary text ink — deep purple-black */
+  --orange: #7C4DBE;       /* primary accent (purple) — CTAs, live state */
+  --orange-deep: #5B3690;  /* deep purple — text / border accent */
+  --orange-tint: #EDE1F7;  /* lilac — tinted pill backgrounds */
+  --sage: #46A873;         /* secondary accent (green) — safety / anonymity */
+  --sage-tint: #DFF3E7;
+  --sky: #A9A0DE;          /* avatar pastel — periwinkle */
+  --yellow: #F0B93D;       /* gold accent / winner highlight */
+  --salmon: #E3A6C7;       /* avatar pastel — mauve */
+  --lilac: #C9AEE0;        /* avatar pastel — lilac */
+  --rose: #E7B8DD;         /* avatar pastel — orchid */
+  --muted: #6B6178;        /* muted ink for secondary text */
+  --muted-2: #A196AE;
+  --line: rgba(36,27,51,0.14);
+  --line-strong: rgba(36,27,51,0.5);
+  --radius-s: 12px;
+  --radius-m: 20px;
+  --radius-l: 28px;
+  --shadow-sm: 3px 3px 0 var(--ink);
+  --shadow-md: 5px 5px 0 var(--ink);
+  --shadow-lg: 8px 8px 0 var(--ink);
+  --font-display: 'Baloo 2', 'Segoe UI Rounded', sans-serif;
+  --font-body: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Space Mono', 'SFMono-Regular', monospace;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--cream);
+  color:var(--ink);
+  font-family:var(--font-body);
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+#app{min-height:100vh; position:relative;}
+button{font-family:inherit;}
+a{color:inherit;}
+img,svg{display:block;}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
+}
+
+button:focus-visible, [tabindex]:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible{
+  outline:3px solid var(--orange-deep);
+  outline-offset:3px;
+}
+
+/* =========================================================
+   UTILITIES
+========================================================= */
+.eyebrow{
+  font-family:var(--font-mono);
+  font-size:12px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--orange-deep);
+  font-weight:700;
+}
+.eyebrow.on-paper{color:var(--orange-deep);}
+
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  border-radius:999px;
+  border:2.5px solid var(--ink);
+  background:var(--white);
+  color:var(--ink);
+  padding:15px 27px;
+  font-size:15px;
+  font-weight:800;
+  font-family:var(--font-body);
+  letter-spacing:0.01em;
+  cursor:pointer;
+  box-shadow:var(--shadow-md);
+  transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
+  min-height:52px;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:hover{transform:translate(-1px,-1px); box-shadow:6px 6px 0 var(--ink);}
+.btn:active{transform:translate(3px,3px); box-shadow:1px 1px 0 var(--ink);}
+.btn-primary{background:var(--orange); color:var(--ink);}
+.btn-gold{background:var(--yellow); color:var(--ink);}
+.btn-ghost{background:var(--white); color:var(--ink); border-color:var(--ink);}
+.btn-dark{background:var(--ink); color:var(--cream); border-color:var(--ink);}
+.btn:disabled{opacity:0.4; cursor:not-allowed; transform:none; box-shadow:var(--shadow-md);}
+.btn-sm{padding:10px 18px; min-height:38px; font-size:13px; box-shadow:var(--shadow-sm);}
+.btn-sm:hover{box-shadow:4px 4px 0 var(--ink);}
+.btn-sm:active{box-shadow:1px 1px 0 var(--ink);}
+.btn-full{width:100%;}
+
+.wrap{max-width:1180px; margin:0 auto; padding:0 24px;}
+.wrap-narrow{max-width:720px; margin:0 auto; padding:0 24px;}
+
+/* waveform — signature motif, restyled as chunky HUD bars */
+.waveform{display:flex; align-items:flex-end; gap:4px; height:22px;}
+.waveform span{
+  width:5px; border-radius:2px; background:var(--sage);
+  border:1.5px solid var(--ink);
+  animation: bar 1.1s ease-in-out infinite;
+}
+.waveform.voice span{background:var(--orange);}
+.waveform.gold span{background:var(--yellow);}
+.waveform span:nth-child(1){height:40%; animation-delay:0s;}
+.waveform span:nth-child(2){height:100%; animation-delay:0.12s;}
+.waveform span:nth-child(3){height:60%; animation-delay:0.24s;}
+.waveform span:nth-child(4){height:85%; animation-delay:0.36s;}
+.waveform span:nth-child(5){height:50%; animation-delay:0.48s;}
+.waveform span:nth-child(6){height:70%; animation-delay:0.6s;}
+.waveform span:nth-child(7){height:90%; animation-delay:0.72s;}
+.waveform span:nth-child(8){height:55%; animation-delay:0.84s;}
+.waveform span:nth-child(9){height:75%; animation-delay:0.96s;}
+@keyframes bar{
+  0%,100%{transform:scaleY(0.55);}
+  50%{transform:scaleY(1);}
+}
+
+.pill{
+  display:inline-flex; align-items:center; gap:8px;
+  font-family:var(--font-mono); font-size:12px; letter-spacing:0.05em;
+  padding:9px 16px; border-radius:999px; border:2px solid var(--ink);
+  background:var(--white);
+  color:var(--ink); font-weight:700;
+  box-shadow:var(--shadow-sm);
+}
+
+/* tag-pill — tinted badge, reference's "FOR HOST/ADMIN" chip */
+.tag-pill{
+  display:inline-flex; align-items:center; gap:8px;
+  font-family:var(--font-mono); font-size:11px; letter-spacing:0.06em; text-transform:uppercase;
+  padding:8px 15px; border-radius:999px; font-weight:700;
+  background:var(--orange-tint); color:var(--orange-deep);
+  border:2px solid var(--ink);
+}
+.tag-pill.sage{background:var(--sage-tint); color:#2C5C41;}
+
+/* avatar circle — black-outlined circle, flat pastel fill */
+.avatar-blob{
+  position:relative; display:flex; align-items:center; justify-content:center;
+  border-radius:50%;
+  border:2.5px solid var(--ink);
+  font-size:1.35em;
+  flex-shrink:0;
+}
+.avatar-blob.sq{border-radius:30%;}
+
+.reveal{animation: rise .5s cubic-bezier(.2,.8,.2,1) both;}
+@keyframes rise{from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);}}
+
+.toast-stack{
+  position:fixed; top:20px; left:50%; transform:translateX(-50%);
+  z-index:200; display:flex; flex-direction:column; gap:10px; align-items:center;
+  pointer-events:none; width:100%; padding:0 16px;
+}
+.toast{
+  background:var(--ink); color:var(--cream); font-weight:700; font-size:13px;
+  font-family:var(--font-mono); letter-spacing:0.04em; text-transform:uppercase;
+  padding:12px 20px; border-radius:999px; box-shadow:var(--shadow-md);
+  border:2px solid var(--ink);
+  animation: toastIn .35s ease both, toastOut .4s ease 2.1s forwards;
+}
+@keyframes toastIn{from{opacity:0; transform:translateY(-14px) scale(.9);} to{opacity:1; transform:translateY(0) scale(1);}}
+@keyframes toastOut{to{opacity:0; transform:translateY(-10px) scale(.95);}}
+
+.role-switcher{
+  position:fixed; bottom:18px; right:18px; z-index:150;
+  background:var(--white); border:2.5px solid var(--ink);
+  border-radius:999px; padding:6px; display:flex; gap:4px;
+  box-shadow:var(--shadow-md);
+}
+.role-switcher button{
+  border:none; background:transparent; color:var(--muted);
+  font-family:var(--font-mono); font-size:11px; letter-spacing:0.05em;
+  padding:9px 14px; border-radius:999px; cursor:pointer; text-transform:uppercase; font-weight:700;
+}
+.role-switcher button.active{background:var(--orange); color:var(--ink);}
+
+/* doodle background field — thin outline icons scattered & rotated */
+.doodle-field{position:absolute; inset:0; pointer-events:none; overflow:hidden;}
+.doodle-field span{position:absolute; opacity:0.24; display:block;}
+.doodle-field svg{width:100%; height:100%; stroke:var(--ink); fill:none;}
+
+/* =========================================================
+   LANDING
+========================================================= */
+.landing{position:relative; min-height:100vh; overflow:hidden; display:flex; flex-direction:column;}
+.landing-top{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:26px 24px; position:relative; z-index:5;
+}
+.brand{display:flex; align-items:center; gap:10px; font-family:var(--font-display); font-size:16px; letter-spacing:0.01em; color:var(--ink); font-weight:700;}
+.brand-mark{width:34px; height:34px; border-radius:50%; border:2.5px solid var(--ink); background:var(--orange); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+.brand-mark svg{width:18px; height:18px; stroke:var(--ink);}
+.brand small{display:block; font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); font-weight:400;}
+
+.hero-field{
+  position:relative; flex:1; display:flex; align-items:center; justify-content:center;
+  min-height:600px; padding:30px 24px 10px;
+}
+.hero-glow{
+  position:absolute; width:820px; height:820px; border-radius:50%;
+  background:radial-gradient(circle, rgba(124,77,190,0.16) 0%, rgba(124,77,190,0) 62%);
+  top:50%; left:50%; transform:translate(-50%,-50%);
+  pointer-events:none;
+}
+.scatter{position:absolute; inset:0; pointer-events:none;}
+.scatter span{
+  position:absolute; font-family:var(--font-mono); text-transform:uppercase;
+  letter-spacing:0.07em; color:var(--muted); white-space:nowrap; font-weight:700;
+  animation: drift 7s ease-in-out infinite;
+}
+.scatter span.strong{color:#2C5C41;}
+.scatter span.voice-tag{color:var(--orange-deep);}
+@keyframes drift{0%,100%{transform:translateY(0px) rotate(var(--rot,0deg));} 50%{transform:translateY(-12px) rotate(var(--rot,0deg));}}
+
+.hero-core{position:relative; z-index:3; text-align:center; max-width:760px;}
+.hero-core .eyebrow{display:inline-flex; align-items:center; gap:10px; margin-bottom:20px; background:var(--white); border:2px solid var(--ink); padding:8px 16px; border-radius:999px; box-shadow:var(--shadow-sm);}
+.hero-title{
+  font-family:var(--font-display); font-weight:800; font-style:normal;
+  font-size:clamp(54px, 11vw, 118px); line-height:0.9; letter-spacing:-0.01em;
+  margin:0; color:var(--ink);
+}
+.hero-title .line2{display:block; color:var(--orange);}
+.hero-sub{
+  font-size:19px; color:var(--muted); max-width:480px; margin:24px auto 30px;
+  line-height:1.5; font-weight:600;
+}
+.hero-actions{display:flex; gap:14px; justify-content:center; flex-wrap:wrap;}
+.mic-icon{width:1em; height:1em; display:inline-block;}
+
+.landing-footer{
+  position:relative; z-index:4; display:flex; align-items:stretch; justify-content:center;
+  gap:20px; padding:24px 24px 40px; flex-wrap:wrap;
+}
+.footer-card{
+  background:var(--white); border:2.5px solid var(--ink); border-radius:var(--radius-m);
+  box-shadow:var(--shadow-md); padding:20px 24px; max-width:290px; text-align:left;
+  display:flex; flex-direction:column; gap:10px;
+}
+.footer-card .tag-pill{align-self:flex-start;}
+.footer-card h3{margin:0; font-family:var(--font-display); font-size:19px;}
+.footer-card p{margin:0; font-size:13px; color:var(--muted); line-height:1.4; font-weight:600;}
+.footer-card button{margin-top:4px;}
+
+@media (max-width:720px){
+  .scatter{display:none;}
+  .doodle-field{display:none;}
+  .hero-field{min-height:480px; padding-top:6px;}
+}
+
+/* =========================================================
+   GENERIC SCREEN SHELLS
+========================================================= */
+.screen{min-height:100vh; display:flex; flex-direction:column;}
+.screen-header{
+  display:flex; align-items:center; justify-content:space-between; padding:22px 24px;
+  border-bottom:2.5px solid var(--ink);
+  background:var(--white);
+}
+.screen-body{flex:1; padding:36px 24px 80px;}
+.back-link{
+  display:inline-flex; align-items:center; gap:8px; background:none; border:none; color:var(--ink);
+  font-family:var(--font-mono); font-size:12px; text-transform:uppercase; letter-spacing:0.06em; cursor:pointer; font-weight:700;
+}
+.back-link:hover{color:var(--orange-deep);}
+
+.center-panel{max-width:560px; margin:0 auto; text-align:center;}
+.headline-serif{
+  font-family:var(--font-display); font-weight:700; font-size:clamp(32px,6vw,50px);
+  line-height:1.04; margin:14px 0 0;
+}
+.headline-caps{
+  font-family:var(--font-display); font-weight:800; text-transform:uppercase; letter-spacing:0.005em;
+  font-size:clamp(25px,5vw,38px); line-height:1.1; margin:0;
+}
+.lede{color:var(--muted); font-size:17px; line-height:1.6; margin:16px 0 30px; font-weight:600;}
+
+/* =========================================================
+   FORMS (host setup)
+========================================================= */
+.form-card{
+  background:var(--white); border:2.5px solid var(--ink); border-radius:var(--radius-l);
+  box-shadow:var(--shadow-lg);
+  padding:36px; max-width:640px; margin:0 auto;
+}
+.field-group{margin-bottom:24px;}
+.field-label{
+  display:block; font-family:var(--font-mono); font-size:11px; letter-spacing:0.07em;
+  text-transform:uppercase; color:var(--muted); margin-bottom:10px; font-weight:700;
+}
+.field-input, .field-select, .field-textarea{
+  width:100%; background:var(--cream); border:2px solid var(--ink); color:var(--ink);
+  border-radius:var(--radius-s); padding:14px 16px; font-size:15px; font-family:var(--font-body); font-weight:600;
+}
+.field-textarea{resize:vertical; min-height:90px;}
+.field-input::placeholder, .field-textarea::placeholder{color:var(--muted-2); font-weight:600;}
+.field-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+@media (max-width:520px){.field-row{grid-template-columns:1fr;}}
+
+.toggle-row{display:flex; gap:8px; background:var(--cream); border-radius:999px; padding:5px; border:2px solid var(--ink);}
+.toggle-row button{
+  flex:1; border:none; background:transparent; color:var(--muted); padding:12px 16px; border-radius:999px;
+  font-weight:800; font-size:14px; cursor:pointer; font-family:var(--font-body);
+}
+.toggle-row button.active{background:var(--orange); color:var(--ink); border:2px solid var(--ink); box-shadow:var(--shadow-sm);}
+
+.share-row{
+  display:flex; align-items:center; gap:14px; background:var(--cream);
+  border:2px solid var(--ink); border-radius:var(--radius-s); padding:16px 18px; margin-bottom:12px;
+}
+.share-row .link-text{
+  flex:1; font-family:var(--font-mono); font-size:13px; color:var(--muted); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; font-weight:700;
+}
+
+.qr-box{
+  width:150px; height:150px; margin:18px auto; background:var(--white); border:2.5px solid var(--ink); border-radius:var(--radius-m);
+  display:flex; align-items:center; justify-content:center; padding:14px; box-shadow:var(--shadow-md);
+}
+
+/* =========================================================
+   AVATAR SELECT
+========================================================= */
+.avatar-grid{
+  display:grid; grid-template-columns:repeat(5,1fr); gap:16px; max-width:520px; margin:8px auto 0;
+}
+@media (max-width:520px){.avatar-grid{grid-template-columns:repeat(3,1fr); gap:12px;}}
+.avatar-opt{
+  aspect-ratio:1; border:2.5px solid var(--ink); border-radius:50%; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; font-size:30px;
+  transition:transform .18s ease, box-shadow .18s ease;
+  position:relative; box-shadow:var(--shadow-sm);
+}
+.avatar-opt:hover{transform:translate(-2px,-2px); box-shadow:5px 5px 0 var(--ink);}
+.avatar-opt.selected{box-shadow:6px 6px 0 var(--orange-deep); transform:translate(-2px,-2px);}
+.avatar-opt.selected::after{
+  content:'✓'; position:absolute; top:-8px; right:-8px; background:var(--sage); color:var(--ink);
+  width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:800; border:2px solid var(--ink);
+}
+.safety-note{
+  display:flex; align-items:center; gap:10px; justify-content:center; margin-top:28px;
+  color:#2C5C41; font-family:var(--font-mono); font-size:12px; letter-spacing:0.06em; text-transform:uppercase; font-weight:700;
+}
+
+/* =========================================================
+   ROOM
+========================================================= */
+.room-header{
+  padding:20px 24px; border-bottom:2.5px solid var(--ink);
+  background:var(--white);
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+}
+.room-title{font-family:var(--font-display); font-weight:700; font-size:22px; letter-spacing:0.01em;}
+.presence{display:flex; align-items:center; gap:10px; font-family:var(--font-mono); font-size:12px; color:var(--muted); font-weight:700;}
+.me-avatar{width:34px; height:34px; font-size:18px;}
+.progress-strip{
+  display:flex; align-items:center; justify-content:center; gap:14px; padding:14px 24px;
+  background:var(--cream-2); border-bottom:2px solid var(--ink);
+  flex-wrap:wrap; text-align:center;
+}
+.progress-strip span{
+  font-family:var(--font-mono); font-size:12px; color:var(--ink); letter-spacing:0.04em; font-weight:700;
+  background:var(--white); border:2px solid var(--ink); border-radius:999px; padding:8px 16px; box-shadow:var(--shadow-sm);
+}
+.progress-strip b{color:var(--orange-deep);}
+
+.ask-panel{max-width:640px; margin:0 auto; text-align:center; padding-top:10px;}
+.ask-textarea{
+  width:100%; background:var(--white); border:2.5px solid var(--ink); color:var(--ink);
+  border-radius:var(--radius-m); padding:22px; font-size:18px; font-family:var(--font-body); font-weight:600;
+  min-height:120px; resize:vertical; margin:22px 0 18px; box-shadow:var(--shadow-md);
+}
+.ask-textarea::placeholder{color:var(--muted-2);}
+.confirm-panel{
+  max-width:520px; margin:36px auto 0; text-align:center; background:var(--sage-tint);
+  border:2.5px solid var(--ink); border-radius:var(--radius-l); padding:34px; box-shadow:var(--shadow-md);
+}
+
+.feed-count{text-align:center; font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:#2C5C41; text-transform:uppercase; margin:44px 0 18px; font-weight:700;}
+.feed{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; max-width:940px; margin:0 auto;}
+@media (max-width:860px){.feed{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:560px){.feed{grid-template-columns:1fr;}}
+
+.q-card{
+  background:var(--white); color:var(--ink); border:2px solid var(--ink); border-radius:var(--radius-m); padding:20px;
+  display:flex; flex-direction:column; gap:12px; position:relative; box-shadow:var(--shadow-sm);
+}
+.q-card.mine{border-color:var(--orange-deep); box-shadow:4px 4px 0 var(--orange-deep);}
+.q-avatar-row{display:flex; align-items:center; gap:10px;}
+.q-avatar-row .avatar-blob{width:34px; height:34px; font-size:17px;}
+.q-tag{font-family:var(--font-mono); font-size:10px; text-transform:uppercase; letter-spacing:0.06em; color:var(--orange-deep); font-weight:700;}
+.q-text{font-size:15.5px; line-height:1.45; font-weight:700; flex:1;}
+
+.pool-list{max-width:760px; margin:0 auto; display:flex; flex-direction:column; gap:14px;}
+.vote-card{
+  background:var(--white); color:var(--ink); border:2.5px solid var(--ink); border-radius:var(--radius-m); padding:22px 24px;
+  display:flex; align-items:center; gap:18px; transition:transform .2s ease, box-shadow .2s ease; box-shadow:var(--shadow-sm);
+}
+.vote-card.voted{border-color:var(--orange-deep); box-shadow:5px 5px 0 var(--orange-deep);}
+.vote-card.mine-q{background:var(--cream-2);}
+.vote-avatar{width:48px; height:48px; font-size:22px;}
+.vote-body{flex:1; min-width:0;}
+.vote-q{font-size:16px; font-weight:800; line-height:1.35; margin-bottom:6px;}
+.vote-meta{font-family:var(--font-mono); font-size:12px; color:var(--orange-deep); font-weight:700;}
+.vote-count{font-family:var(--font-mono); font-weight:700; font-size:22px; min-width:34px; text-align:center;}
+.vote-btn{
+  border:2.5px solid var(--ink); border-radius:999px; padding:12px 20px; font-weight:800; font-size:13px;
+  background:var(--orange); color:var(--ink); cursor:pointer; letter-spacing:0.02em; white-space:nowrap;
+  box-shadow:var(--shadow-sm); transition:transform .12s ease, box-shadow .12s ease;
+}
+.vote-btn:hover{transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--ink);}
+.vote-btn:active{transform:translate(2px,2px); box-shadow:1px 1px 0 var(--ink);}
+.vote-btn.voted-btn{background:var(--yellow);}
+.vote-btn:disabled{background:var(--cream-2); color:var(--muted-2); cursor:not-allowed; box-shadow:none; border-color:var(--line-strong);}
+.own-tag{font-family:var(--font-mono); font-size:11px; color:var(--muted-2); text-transform:uppercase; letter-spacing:0.05em; font-weight:700;}
+
+@keyframes voteBump{0%{transform:scale(1);}40%{transform:scale(1.08);}100%{transform:scale(1);}}
+.bump{animation:voteBump .4s ease;}
+
+/* =========================================================
+   STAGE FRAME — signature bracket / cut-corner device,
+   adapted from the reference's session-card framing
+========================================================= */
+.stage-frame{
+  position:relative; border:2.5px solid var(--orange-deep); border-radius:var(--radius-l);
+  background:var(--cream-2);
+  padding:50px 30px 40px;
+  max-width:880px; margin:0 auto;
+  clip-path: polygon(28px 0, calc(100% - 28px) 0, 100% 28px, 100% calc(100% - 28px), calc(100% - 28px) 100%, 28px 100%, 0 calc(100% - 28px), 0 28px);
+}
+.stage-frame::before, .stage-frame::after{
+  content:''; position:absolute; left:50%; transform:translateX(-50%);
+  width:64px; height:8px;
+  background:repeating-linear-gradient(115deg, var(--orange-deep) 0 8px, transparent 8px 14px);
+}
+.stage-frame::before{top:14px;}
+.stage-frame::after{bottom:14px;}
+.frame-dots{position:absolute; display:flex; gap:5px;}
+.frame-dots span{width:5px; height:5px; border-radius:50%; background:var(--orange-deep); display:block;}
+.frame-dots.tl{top:14px; left:18px;}
+.frame-dots.tr{top:14px; right:18px;}
+.frame-dots.bl{bottom:14px; left:18px;}
+.frame-dots.br{bottom:14px; right:18px;}
+
+/* winner reveal */
+.winner-stage{
+  min-height:calc(100vh - 0px); display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; padding:60px 24px; position:relative; overflow:hidden;
+}
+.winner-stage .waveform{margin:0 auto 26px; height:52px;}
+.winner-stage .waveform span{width:8px;}
+.winner-q{
+  font-family:var(--font-display); font-weight:700; font-size:clamp(26px,5vw,42px); line-height:1.2;
+  max-width:780px; margin:20px auto; color:var(--ink);
+  animation: rise .6s .2s cubic-bezier(.2,.8,.2,1) both;
+}
+.winner-votes{font-family:var(--font-mono); color:var(--orange-deep); font-size:15px; letter-spacing:0.05em; margin-bottom:22px; font-weight:700;
+  animation: rise .6s .4s cubic-bezier(.2,.8,.2,1) both;}
+.winner-cta{animation: rise .6s .6s cubic-bezier(.2,.8,.2,1) both;}
+
+/* answering */
+.answer-stage{min-height:calc(100vh); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:60px 24px;}
+.answer-q{font-family:var(--font-display); font-weight:700; font-size:clamp(24px,4.6vw,38px); max-width:740px; margin:20px auto;}
+.live-dot{width:10px; height:10px; border-radius:50%; background:var(--orange); border:2px solid var(--ink); display:inline-block; animation:pulseDot 1.4s infinite;}
+@keyframes pulseDot{0%,100%{opacity:1; box-shadow:0 0 0 0 rgba(124,77,190,0.5);} 50%{opacity:0.7; box-shadow:0 0 0 8px rgba(124,77,190,0);}}
+
+/* closing */
+.closing-stage{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:60px 24px;}
+.stat-row{display:flex; gap:18px; justify-content:center; flex-wrap:wrap; margin:34px 0;}
+.stat{
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  background:var(--white); border:2.5px solid var(--ink); border-radius:var(--radius-s);
+  padding:18px 24px; min-width:120px; box-shadow:var(--shadow-sm);
+}
+.stat b{font-family:var(--font-display); font-size:34px; color:var(--orange-deep); font-weight:800;}
+.stat span{font-family:var(--font-mono); font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:700;}
+
+/* =========================================================
+   HOST CONTROL ROOM
+========================================================= */
+.host-shell{display:grid; grid-template-columns:280px 1fr; min-height:100vh;}
+@media (max-width:860px){.host-shell{grid-template-columns:1fr;}}
+.host-side{
+  background:var(--cream-2); border-right:2.5px solid var(--ink); padding:26px 22px;
+  display:flex; flex-direction:column; gap:20px;
+}
+@media (max-width:860px){.host-side{border-right:none; border-bottom:2.5px solid var(--ink);}}
+.host-main{padding:28px 28px 90px;}
+.stat-block{background:var(--white); border:2px solid var(--ink); border-radius:var(--radius-s); padding:16px; box-shadow:var(--shadow-sm);}
+.stat-block .num{font-family:var(--font-display); font-size:28px; color:var(--ink); font-weight:800;}
+.stat-block .lbl{font-family:var(--font-mono); font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:700;}
+.phase-badge{
+  font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:0.07em;
+  color:var(--ink); background:var(--sage); display:inline-block; padding:7px 13px; border-radius:999px; font-weight:800;
+  border:2px solid var(--ink);
+}
+.control-actions{display:flex; flex-direction:column; gap:10px;}
+.host-q-list{display:flex; flex-direction:column; gap:10px; margin-top:18px;}
+.host-q-row{
+  display:flex; align-items:center; gap:12px; background:var(--white); border:2px solid var(--ink);
+  border-radius:var(--radius-s); padding:14px 16px; box-shadow:var(--shadow-sm);
+}
+.host-q-row .avatar-blob{width:36px; height:36px; font-size:18px; flex-shrink:0;}
+.host-q-row .txt{flex:1; font-size:14px; line-height:1.4; font-weight:600;}
+.host-q-row .votes{font-family:var(--font-mono); font-weight:800; color:var(--orange-deep); font-size:14px;}
+.host-q-row.answered{opacity:0.5;}
+.host-q-row input[type=checkbox]{width:18px; height:18px; accent-color:var(--orange);}
+.icon-btn{
+  background:var(--white); border:2px solid var(--ink); color:var(--ink); border-radius:8px;
+  width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px;
+  box-shadow:var(--shadow-sm);
+}
+.icon-btn:hover{background:var(--orange-tint); color:var(--orange-deep);}
+.section-title{font-family:var(--font-mono); font-size:12px; text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); margin:26px 0 4px; font-weight:700;}
+.divider{height:2px; background:var(--line); margin:18px 0;}
+.host-current{background:var(--white); border:2.5px solid var(--orange-deep); border-radius:var(--radius-m); padding:20px; margin-bottom:20px; box-shadow:var(--shadow-md);}
+.host-current .q{font-family:var(--font-display); font-size:19px; font-weight:700; margin-top:6px;}
+
+/* invite screen buttons */
+.invite-card{background:var(--white); border:2.5px solid var(--ink); border-radius:var(--radius-l); box-shadow:var(--shadow-lg); padding:34px; max-width:460px; margin:0 auto; text-align:center;}
+.invite-actions{display:flex; flex-direction:column; gap:12px; margin-top:24px;}
+
+.badge-anon{
+  display:inline-flex; align-items:center; gap:8px; background:var(--sage-tint); color:#2C5C41;
+  border:2px solid var(--ink); padding:8px 16px; border-radius:999px; font-family:var(--font-mono);
+  font-size:11px; letter-spacing:0.06em; text-transform:uppercase; margin-bottom:18px; font-weight:700;
+}
+
+.sticky-mobile-cta{position:sticky; bottom:0; background:linear-gradient(0deg, var(--cream) 60%, transparent); padding:18px 24px 24px; margin-top:20px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast-root" class="toast-stack"></div>
+
+<script>
+/* =========================================================
+   DATA
+========================================================= */
+const AVATARS = [
+  {id:'panda', emoji:'🐼', color:'#EDE4F5', dark:false},
+  {id:'fox', emoji:'🦊', color:'#E3A6C7', dark:false},
+  {id:'octopus', emoji:'🐙', color:'#B79BDD', dark:false},
+  {id:'lion', emoji:'🦁', color:'#F0C55E', dark:false},
+  {id:'frog', emoji:'🐸', color:'#7FC79E', dark:false},
+  {id:'koala', emoji:'🐨', color:'#A9A0DE', dark:false},
+  {id:'tiger', emoji:'🐯', color:'#E0A94A', dark:false},
+  {id:'bear', emoji:'🐻', color:'#A8D9BC', dark:false},
+  {id:'unicorn', emoji:'🦄', color:'#E7B8DD', dark:false},
+  {id:'monkey', emoji:'🐵', color:'#E0C67A', dark:false},
+];
+
+const SAMPLE_QUESTIONS = [
+  "How are we thinking about career progression this year?",
+  "What is changing about our hybrid working policy?",
+  "How are leadership decisions communicated to the wider team?",
+  "What support is available when workloads become difficult?",
+  "How do we decide which new tools the team gets?",
+  "Are there plans to improve internal mobility?",
+  "How can employees give feedback when they disagree with a decision?",
+];
+
+const SCATTER_WORDS = [
+  {t:'PSYCHOLOGICAL SAFETY', top:'14%', left:'8%', size:'12px', rot:-6, cls:''},
+  {t:'VOICE', top:'22%', left:'82%', size:'15px', rot:4, cls:'voice-tag'},
+  {t:'ASK ME ANYTHING', top:'68%', left:'6%', size:'12px', rot:3, cls:''},
+  {t:'BE HEARD', top:'80%', left:'80%', size:'13px', rot:-3, cls:'strong'},
+  {t:'SPEAK UP', top:'10%', left:'42%', size:'12px', rot:-2, cls:''},
+  {t:"WE'RE LISTENING", top:'50%', left:'2%', size:'12px', rot:2, cls:'strong'},
+  {t:'OPEN CONVERSATION', top:'88%', left:'40%', size:'11px', rot:-1, cls:''},
+  {t:'TRANSPARENCY', top:'6%', left:'70%', size:'11px', rot:5, cls:''},
+  {t:'TOGETHER', top:'40%', left:'90%', size:'12px', rot:-4, cls:'voice-tag'},
+  {t:'ASK · LISTEN · ANSWER', top:'58%', left:'70%', size:'11px', rot:2, cls:''},
+];
+
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function pick(arr){ return arr[randInt(0,arr.length-1)]; }
+function esc(s){ const d=document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+
+/* =========================================================
+   STATE
+========================================================= */
+let state = {
+  view: 'landing',
+  demoRole: null,
+  closingStep: 0,
+  transitionSeen: false,
+  session: {
+    mode: 'virtual',
+    config: {
+      participants: 25,
+      leaders: 'Dara (VP Engineering), Wale (Head of People)',
+      date: '',
+      time: '',
+      duration: 45,
+      meetingLink: 'https://meet.gummygum.co/ask-leadership-7f2k',
+      location: 'The Commons, 4th Floor',
+    },
+    created: false,
+    phase: 'setup', // setup -> invited -> submitting -> closed -> voting -> winner -> answering -> followup -> ended
+    presence: 24,
+    round: 1,
+    questions: [],
+    currentQuestionId: null,
+    seedTimers: [],
+  },
+  me: {
+    avatar: null,
+    joined: false,
+    myQuestionId: null,
+    votedThisRound: false,
+    justVotedId: null,
+  }
+};
+
+let avatarUsage = {};
+
+function freshQuestion(text, avatarId, opts){
+  opts = opts || {};
+  return {
+    id: uid(),
+    text: text,
+    avatarId: avatarId,
+    votes: opts.votes || 0,
+    answered: false,
+    mine: !!opts.mine,
+    ts: Date.now(),
+  };
+}
+
+function botAvatar(){
+  // cycle avatars for visual variety
+  const ids = AVATARS.map(a=>a.id);
+  const leastUsed = ids.sort((a,b)=>(avatarUsage[a]||0)-(avatarUsage[b]||0))[0];
+  avatarUsage[leastUsed] = (avatarUsage[leastUsed]||0)+1;
+  return leastUsed;
+}
+
+function avatarById(id){
+  return AVATARS.find(a=>a.id===id) || AVATARS[0];
+}
+
+/* =========================================================
+   TOASTS
+========================================================= */
+function toast(msg){
+  const root = document.getElementById('toast-root');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  root.appendChild(el);
+  setTimeout(()=> el.remove(), 2500);
+}
+
+/* =========================================================
+   SESSION LOGIC
+========================================================= */
+function activePool(){
+  return state.session.questions.filter(q=>!q.answered);
+}
+function submittedCount(){ return state.session.questions.length; }
+function answeredCount(){ return state.session.questions.filter(q=>q.answered).length; }
+function remainingCount(){ return activePool().length; }
+
+function seedSubmissions(){
+  const ses = state.session;
+  if (ses.seeded) return;
+  ses.seeded = true;
+  const initial = randInt(3,5);
+  const shuffled = [...SAMPLE_QUESTIONS].sort(()=>Math.random()-0.5);
+  for (let i=0;i<initial;i++){
+    ses.questions.push(freshQuestion(shuffled[i], botAvatar()));
+  }
+  let idx = initial;
+  const scheduleNext = ()=>{
+    if (idx >= shuffled.length) return;
+    const t = setTimeout(()=>{
+      if (state.session.phase !== 'submitting'){ return; }
+      state.session.questions.push(freshQuestion(shuffled[idx], botAvatar()));
+      state.session.presence = Math.min(state.session.config.participants+3, state.session.presence + randInt(0,1));
+      idx++;
+      if (state.view==='room' || state.view==='hostControl') renderApp();
+      scheduleNext();
+    }, randInt(3500,7000));
+    ses.seedTimers.push(t);
+  };
+  scheduleNext();
+}
+
+function startVotingRound(){
+  const ses = state.session;
+  activePool().forEach(q=>{ q.votes = randInt(6,44); });
+  ses.phase = 'voting';
+  state.me.votedThisRound = false;
+  state.me.justVotedId = null;
+}
+
+function closeVotingPickWinner(){
+  const ses = state.session;
+  const pool = activePool();
+  if (!pool.length) return;
+  const winner = pool.reduce((a,b)=> b.votes > a.votes ? b : a);
+  ses.currentQuestionId = winner.id;
+  ses.phase = 'winner';
+}
+
+function markCurrentAnswered(){
+  const ses = state.session;
+  const q = ses.questions.find(q=>q.id===ses.currentQuestionId);
+  if (q) q.answered = true;
+  ses.phase = 'followup';
+}
+
+function goNextRound(){
+  const ses = state.session;
+  ses.currentQuestionId = null;
+  ses.round += 1;
+  if (remainingCount() > 0){
+    startVotingRound();
+  } else {
+    ses.phase = 'ended';
+    clearSeedTimers();
+  }
+}
+
+function endSession(){
+  clearSeedTimers();
+  state.session.phase = 'ended';
+  state.closingStep = remainingCount() > 0 || answeredCount() < submittedCount() ? 0 : 1;
+}
+
+function clearSeedTimers(){
+  state.session.seedTimers.forEach(t=>clearTimeout(t));
+  state.session.seedTimers = [];
+}
+
+function resetAll(){
+  clearSeedTimers();
+  avatarUsage = {};
+  state = {
+    view:'landing', demoRole:null, closingStep:0, transitionSeen:false,
+    session:{
+      mode:'virtual',
+      config:{ participants:25, leaders:'Dara (VP Engineering), Wale (Head of People)', date:'', time:'', duration:45,
+        meetingLink:'https://meet.gummygum.co/ask-leadership-7f2k', location:'The Commons, 4th Floor' },
+      created:false, phase:'setup', presence:24, round:1, questions:[], currentQuestionId:null, seedTimers:[],
+    },
+    me:{ avatar:null, joined:false, myQuestionId:null, votedThisRound:false, justVotedId:null }
+  };
+  renderApp();
+}
+
+/* =========================================================
+   ICONS (inline svg, tiny)
+========================================================= */
+const ICONS = {
+  mic: `<svg class="mic-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="9" y="2" width="6" height="12" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M5 11a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12 18v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  qr: `<svg viewBox="0 0 100 100" width="100%" height="100%"><rect x="4" y="4" width="26" height="26" fill="none" stroke="#241B33" stroke-width="6"/><rect x="12" y="12" width="10" height="10" fill="#241B33"/><rect x="70" y="4" width="26" height="26" fill="none" stroke="#241B33" stroke-width="6"/><rect x="78" y="12" width="10" height="10" fill="#241B33"/><rect x="4" y="70" width="26" height="26" fill="none" stroke="#241B33" stroke-width="6"/><rect x="12" y="78" width="10" height="10" fill="#241B33"/><rect x="40" y="4" width="8" height="8" fill="#241B33"/><rect x="52" y="4" width="8" height="16" fill="#241B33"/><rect x="40" y="20" width="8" height="8" fill="#241B33"/><rect x="40" y="40" width="8" height="8" fill="#241B33"/><rect x="52" y="40" width="8" height="8" fill="#241B33"/><rect x="64" y="40" width="8" height="8" fill="#241B33"/><rect x="40" y="52" width="16" height="8" fill="#241B33"/><rect x="64" y="52" width="8" height="16" fill="#241B33"/><rect x="80" y="40" width="8" height="24" fill="#241B33"/><rect x="40" y="64" width="8" height="8" fill="#241B33"/><rect x="52" y="70" width="8" height="24" fill="#241B33"/><rect x="70" y="70" width="8" height="8" fill="#241B33"/><rect x="86" y="70" width="8" height="24" fill="#241B33"/><rect x="40" y="82" width="8" height="12" fill="#241B33"/></svg>`,
+  sparkle: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2 L14 9 L21 11 L14 13 L12 20 L10 13 L3 11 L10 9 Z" stroke-width="1.6" stroke-linejoin="round"/></svg>`,
+  chat: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 5h16v11H9l-5 4V5Z" stroke-width="1.6" stroke-linejoin="round"/></svg>`,
+  heart: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 20s-7-4.5-9.3-9C1.2 7.8 3 4.5 6.5 4.5c2 0 3.3 1 5.5 3 2.2-2 3.5-3 5.5-3C21 4.5 22.8 7.8 21.3 11c-2.3 4.5-9.3 9-9.3 9Z" stroke-width="1.6" stroke-linejoin="round"/></svg>`,
+  people: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="3" stroke-width="1.6"/><circle cx="17" cy="9" r="2.4" stroke-width="1.6"/><path d="M2.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke-width="1.6" stroke-linecap="round"/><path d="M14.5 14.5c2.4.2 4 1.9 4 4.5" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  dice: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" stroke-width="1.6"/><circle cx="8" cy="8" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="8" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="8" cy="16" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="16" r="1.3" fill="currentColor" stroke="none"/></svg>`,
+};
+
+function doodleField(){
+  const icons = [ICONS.sparkle, ICONS.chat, ICONS.heart, ICONS.people, ICONS.dice, ICONS.sparkle, ICONS.chat, ICONS.heart];
+  const spots = [
+    {top:'8%',left:'20%',size:34,rot:-12},
+    {top:'16%',left:'62%',size:28,rot:10},
+    {top:'32%',left:'12%',size:26,rot:8},
+    {top:'28%',left:'88%',size:30,rot:-6},
+    {top:'62%',left:'90%',size:32,rot:14},
+    {top:'70%',left:'18%',size:30,rot:-10},
+    {top:'85%',left:'55%',size:26,rot:6},
+    {top:'48%',left:'50%',size:24,rot:-4},
+  ];
+  const marks = spots.map((s,i)=>`<span style="top:${s.top};left:${s.left};width:${s.size}px;height:${s.size}px;transform:rotate(${s.rot}deg);">${icons[i%icons.length]}</span>`).join('');
+  return `<div class="doodle-field">${marks}</div>`;
+}
+
+function waveform(n, variant){
+  n = n || 6;
+  let bars = '';
+  for(let i=0;i<n;i++) bars += '<span></span>';
+  return `<div class="waveform ${variant||''}">${bars}</div>`;
+}
+
+function avatarBlob(avatarId, size, extraClass){
+  const a = avatarById(avatarId);
+  return `<div class="avatar-blob ${extraClass||''}" style="width:${size||44}px;height:${size||44}px;background:${a.color};">${a.emoji}</div>`;
+}
+
+/* =========================================================
+   VIEWS: LANDING
+========================================================= */
+function viewLanding(){
+  const scatter = SCATTER_WORDS.map(w=>`<span class="${w.cls}" style="top:${w.top};left:${w.left};font-size:${w.size};--rot:${w.rot}deg;">${w.t}</span>`).join('');
+  return `
+  <div class="landing">
+    <div class="landing-top wrap" style="max-width:1180px;padding:26px 0;">
+      <div class="brand"><div class="brand-mark">${ICONS.mic}</div><div>GummyGum<small>Team Engagement</small></div></div>
+      <div class="pill">${waveform(4,'gold')} Live experience</div>
+    </div>
+    <div class="hero-field">
+      <div class="hero-glow"></div>
+      ${doodleField()}
+      <div class="scatter">${scatter}</div>
+      <div class="hero-core reveal">
+        <div class="eyebrow">${ICONS.mic} Anonymous by design</div>
+        <h1 class="hero-title">ASK<span class="line2">Leadership</span></h1>
+        <p class="hero-sub">The questions you've been waiting to ask — put to the people who can actually answer them, live.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" data-action="go-employee-invite">I've been invited →</button>
+          <button class="btn btn-ghost" data-action="go-host-setup">Set up a session</button>
+        </div>
+      </div>
+    </div>
+    <div class="landing-footer">
+      <div class="footer-card">
+        <span class="tag-pill sage">${ICONS.people} For employees</span>
+        <h3>Join with an invite</h3>
+        <p>Pick a session avatar, ask anonymously, and help vote on what leadership answers first.</p>
+        <button class="btn btn-primary btn-sm" data-action="go-employee-invite">Employee experience →</button>
+      </div>
+      <div class="footer-card">
+        <span class="tag-pill">${ICONS.sparkle} For hosts</span>
+        <h3>Run a session</h3>
+        <p>Set up the room, send invites, and control submissions, voting and answers live.</p>
+        <button class="btn btn-dark btn-sm" data-action="go-host-setup">Host experience →</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   VIEWS: HOST SETUP
+========================================================= */
+function viewHostSetup(){
+  const c = state.session.config;
+  const mode = state.session.mode;
+  return `
+  <div class="screen">
+    <div class="screen-header">
+      <button class="back-link" data-action="go-landing">← Back</button>
+      <div class="eyebrow">Host · New session</div>
+      <div style="width:60px;"></div>
+    </div>
+    <div class="screen-body">
+      <div class="center-panel" style="margin-bottom:30px;">
+        <div class="eyebrow">Ask Leadership</div>
+        <h2 class="headline-serif">Set the room up.</h2>
+        <p class="lede">A few details, then send the invite. Employees will only ever see their session avatar.</p>
+      </div>
+      <div class="form-card reveal">
+        <div class="field-group">
+          <label class="field-label">Format</label>
+          <div class="toggle-row">
+            <button class="${mode==='virtual'?'active':''}" data-action="set-mode" data-mode="virtual" type="button">Virtual</button>
+            <button class="${mode==='physical'?'active':''}" data-action="set-mode" data-mode="physical" type="button">Physical</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label class="field-label">Participants</label>
+            <input class="field-input" type="number" min="2" data-field="participants" value="${c.participants}">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Duration (minutes)</label>
+            <input class="field-input" type="number" min="10" data-field="duration" value="${c.duration}">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Leadership participants</label>
+          <input class="field-input" type="text" data-field="leaders" placeholder="e.g. Dara (VP Engineering)" value="${esc(c.leaders)}">
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label class="field-label">Date</label>
+            <input class="field-input" type="date" data-field="date" value="${c.date}">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Time</label>
+            <input class="field-input" type="time" data-field="time" value="${c.time}">
+          </div>
+        </div>
+        ${mode==='virtual' ? `
+        <div class="field-group">
+          <label class="field-label">Meeting link</label>
+          <input class="field-input" type="text" data-field="meetingLink" placeholder="Paste your video call link" value="${esc(c.meetingLink)}">
+        </div>` : `
+        <div class="field-group">
+          <label class="field-label">Location</label>
+          <input class="field-input" type="text" data-field="location" placeholder="e.g. The Commons, 4th floor" value="${esc(c.location)}">
+        </div>`}
+        <button class="btn btn-primary btn-full" data-action="send-invitations">Send invitations</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function viewHostReady(){
+  const c = state.session.config;
+  const mode = state.session.mode;
+  return `
+  <div class="screen">
+    <div class="screen-header">
+      <button class="back-link" data-action="go-host-setup">← Edit</button>
+      <div class="eyebrow">Host · Session ready</div>
+      <div style="width:60px;"></div>
+    </div>
+    <div class="screen-body">
+      <div class="center-panel reveal">
+        <div class="badge-anon">${ICONS.mic} ${mode==='virtual'?'Virtual':'Physical'} session</div>
+        <h2 class="headline-serif">Your Ask Leadership session is ready.</h2>
+        <p class="lede">${c.participants} invitations queued for ${mode==='virtual' ? 'the video call' : c.location || 'the room'}.</p>
+      </div>
+      <div class="form-card">
+        <div class="share-row">
+          <span class="link-text">gummygum.co/join/askleadership-7f2k</span>
+          <button class="btn btn-sm btn-dark" data-action="copy-join-link">Copy join link</button>
+        </div>
+        ${mode==='virtual' ? `
+        <div class="share-row">
+          <span class="link-text">${esc(c.meetingLink)}</span>
+          <button class="btn btn-sm btn-dark" data-action="copy-meeting-link">Copy meeting link</button>
+        </div>` : ''}
+        <button class="btn btn-ghost btn-full" data-action="toggle-qr" style="margin-top:6px;">Show QR code</button>
+        <div id="qr-slot"></div>
+        <div class="divider"></div>
+        <button class="btn btn-gold btn-full" data-action="enter-host-control">Enter host control room →</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   VIEWS: EMPLOYEE INVITE / WELCOME
+========================================================= */
+function viewEmployeeInvite(){
+  const mode = state.session.mode;
+  const c = state.session.config;
+  return `
+  <div class="screen">
+    <div class="screen-header">
+      <button class="back-link" data-action="go-landing">← Back</button>
+      <div class="eyebrow">Invitation</div>
+      <div style="width:60px;"></div>
+    </div>
+    <div class="screen-body" style="display:flex; align-items:center; min-height:60vh;">
+      <div class="invite-card reveal">
+        ${waveform(6,'voice')}
+        <div class="eyebrow" style="margin-top:16px;">You're invited</div>
+        <h2 class="headline-serif" style="font-size:32px;">Ask Leadership is starting soon.</h2>
+        <p class="lede">${mode==='virtual' ? `Join the room, then hop into the call when it starts.` : `Join the room from your phone — the conversation happens live in ${esc(c.location||'the room')}.`}</p>
+        <div class="invite-actions">
+          <button class="btn btn-primary btn-full" data-action="go-employee-welcome">Join Ask Leadership</button>
+          ${mode==='virtual' ? `<button class="btn btn-ghost btn-full" data-action="simulate-join-meeting">Join meeting</button>` : `
+          <div class="qr-box">${ICONS.qr}</div>
+          <div class="eyebrow" style="justify-content:center; display:flex;">Scan to join in ${esc(c.location||'the room')}</div>`}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function viewEmployeeWelcome(){
+  return `
+  <div class="screen">
+    <div class="screen-header">
+      <button class="back-link" data-action="go-employee-invite">← Back</button>
+      <div class="eyebrow">Ask Leadership</div>
+      <div style="width:60px;"></div>
+    </div>
+    <div class="screen-body" style="display:flex; align-items:center; min-height:65vh;">
+      <div class="center-panel reveal">
+        ${waveform(6,'voice')}
+        <h1 class="headline-caps" style="margin-top:20px;">Ask Leadership</h1>
+        <p class="lede">Ask anonymously. See what others are asking. Help decide what leadership answers.</p>
+        <button class="btn btn-primary" data-action="go-avatar-select">Enter the room</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   VIEWS: AVATAR SELECT
+========================================================= */
+function viewAvatarSelect(){
+  const chosen = state.me.avatar;
+  const grid = AVATARS.map(a=>`
+    <button class="avatar-opt ${chosen===a.id?'selected':''}" style="background:${a.color};" data-action="choose-avatar" data-avatar="${a.id}" aria-label="Choose ${a.id} avatar" aria-pressed="${chosen===a.id}">
+      ${a.emoji}
+    </button>`).join('');
+  return `
+  <div class="screen">
+    <div class="screen-header">
+      <button class="back-link" data-action="go-employee-welcome">← Back</button>
+      <div class="eyebrow">Ask Leadership</div>
+      <div style="width:60px;"></div>
+    </div>
+    <div class="screen-body">
+      <div class="center-panel">
+        <h2 class="headline-caps">Choose your avatar</h2>
+        <p class="lede">This is your identity for this session. No names. No profiles. Just your voice.</p>
+      </div>
+      <div class="avatar-grid">${grid}</div>
+      <div class="safety-note">${ICONS.mic} Anonymous by design</div>
+      ${chosen ? `
+      <div class="center-panel reveal" style="margin-top:34px;">
+        <p class="eyebrow" style="color:var(--orange-deep);">You're in.</p>
+        <button class="btn btn-primary" data-action="confirm-enter-room" style="margin-top:10px;">Enter the room</button>
+      </div>` : ''}
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   VIEWS: ROOM (submitting / closed pool / voting / winner / answering / followup)
+========================================================= */
+function roomHeader(extraRight){
+  const ses = state.session;
+  return `
+  <div class="room-header">
+    <div style="display:flex; align-items:center; gap:12px;">
+      ${avatarBlob(state.me.avatar,40,'me-avatar')}
+      <div class="room-title">Ask Leadership</div>
+    </div>
+    <div class="presence">${waveform(4)} ${ses.presence} people are in the room ${extraRight||''}</div>
+  </div>`;
+}
+
+function progressStrip(){
+  const total = submittedCount();
+  const answered = answeredCount();
+  const remaining = remainingCount();
+  if (total===0) return '';
+  return `<div class="progress-strip"><span>QUESTION <b>${state.session.round}</b> OF ${answered+remaining}</span><span>${answered} ANSWERED · ${remaining} REMAINING</span></div>`;
+}
+
+function viewRoomSubmitting(){
+  const ses = state.session;
+  const mine = state.me.myQuestionId;
+  const list = ses.questions.slice().reverse().map(q=>`
+    <div class="q-card reveal ${q.mine?'mine':''}">
+      <div class="q-avatar-row">${avatarBlob(q.avatarId,32)} <span class="q-tag">${q.mine?'You':'Anonymous'}</span></div>
+      <div class="q-text">"${esc(q.text)}"</div>
+    </div>`).join('');
+
+  return `
+  ${roomHeader()}
+  <div class="screen-body">
+    <div class="ask-panel">
+      <div class="eyebrow">Submissions are open</div>
+      <h2 class="headline-serif" style="font-size:30px;">What's the question you've always wanted to ask?</h2>
+      ${mine ? `
+      <div class="confirm-panel reveal">
+        <div class="eyebrow" style="color:#2C5C41;">You just added your voice.</div>
+        <p class="lede" style="margin-bottom:0;">Your question is in the room. Sit tight while others add theirs.</p>
+      </div>` : `
+      <textarea class="ask-textarea" id="ask-input" placeholder="Ask leadership anything..." maxlength="240"></textarea>
+      <button class="btn btn-primary btn-full" data-action="submit-question">Ask anonymously</button>
+      `}
+    </div>
+    <div class="feed-count">${submittedCount()} question${submittedCount()===1?'':'s'} in the room</div>
+    <div class="feed">${list || `<p style="text-align:center; color:var(--muted); grid-column:1/-1;">The room is listening. Questions will start appearing here.</p>`}</div>
+  </div>`;
+}
+
+function viewRoomClosedPool(){
+  const ses = state.session;
+  const list = ses.questions.map(q=>`
+    <div class="q-card reveal ${q.mine?'mine':''}">
+      <div class="q-avatar-row">${avatarBlob(q.avatarId,32)} <span class="q-tag">${q.mine?'You':'Anonymous'}</span></div>
+      <div class="q-text">"${esc(q.text)}"</div>
+    </div>`).join('');
+  return `
+  ${roomHeader()}
+  <div class="screen-body">
+    <div class="center-panel">
+      <div class="eyebrow" style="color:var(--orange-deep);">The questions are in.</div>
+      <h2 class="headline-serif" style="font-size:30px;">Now let's decide what gets answered first.</h2>
+      <p class="lede">Voting opens as soon as leadership is ready.</p>
+    </div>
+    <div class="feed-count">${submittedCount()} questions in the room</div>
+    <div class="feed">${list}</div>
+  </div>`;
+}
+
+function viewRoomVoting(){
+  const ses = state.session;
+  const pool = activePool();
+  const list = pool.map(q=>{
+    const isMine = q.mine;
+    const votedThis = state.me.justVotedId === q.id;
+    const disabled = isMine || state.me.votedThisRound;
+    return `
+    <div class="vote-card ${votedThis?'voted bump':''} ${isMine?'mine-q':''}">
+      ${avatarBlob(q.avatarId,48,'vote-avatar')}
+      <div class="vote-body">
+        <div class="vote-q">${esc(q.text)}</div>
+        <div class="vote-meta">${q.votes} people want this answered</div>
+      </div>
+      <div class="vote-count">${q.votes}</div>
+      ${isMine
+        ? `<span class="own-tag">Your question</span>`
+        : `<button class="vote-btn ${votedThis?'voted-btn':''}" data-action="vote-question" data-qid="${q.id}" ${disabled?'disabled':''}>${votedThis ? 'Voted' : 'Vote'}</button>`
+      }
+    </div>`;
+  }).join('');
+
+  return `
+  ${roomHeader()}
+  ${progressStrip()}
+  <div class="screen-body">
+    <div class="center-panel">
+      <div class="eyebrow">Round ${ses.round}</div>
+      <h2 class="headline-serif" style="font-size:30px;">What should leadership answer next?</h2>
+      <p class="lede">${state.me.votedThisRound ? "You're helping choose what gets answered next." : "One vote per round. Choose the question you most want answered."}</p>
+    </div>
+    <div class="pool-list">${list}</div>
+  </div>`;
+}
+
+function frameDots(){
+  return `<span class="frame-dots tl"><span></span><span></span><span></span></span>
+    <span class="frame-dots tr"><span></span><span></span><span></span></span>
+    <span class="frame-dots bl"><span></span><span></span><span></span></span>
+    <span class="frame-dots br"><span></span><span></span><span></span></span>`;
+}
+
+function viewRoomWinner(){
+  const ses = state.session;
+  const q = ses.questions.find(x=>x.id===ses.currentQuestionId);
+  if (!q) return viewRoomVoting();
+  return `
+  ${roomHeader()}
+  <div class="winner-stage">
+    <div class="stage-frame">
+      ${frameDots()}
+      ${waveform(9,'gold')}
+      <div class="eyebrow" style="color:var(--orange-deep); margin-top:24px;">The room chose</div>
+      <div class="winner-q">"${esc(q.text)}"</div>
+      <div class="winner-votes">${q.votes} people wanted this answered.</div>
+      <h2 class="headline-caps winner-cta" style="color:var(--orange-deep);">Leadership, you're up.</h2>
+    </div>
+  </div>`;
+}
+
+function viewRoomAnswering(){
+  const ses = state.session;
+  const q = ses.questions.find(x=>x.id===ses.currentQuestionId);
+  return `
+  ${roomHeader()}
+  <div class="answer-stage">
+    <div class="stage-frame">
+      ${frameDots()}
+      <div class="eyebrow"><span class="live-dot"></span>&nbsp; Now answering</div>
+      <div class="answer-q">"${esc(q ? q.text : '')}"</div>
+      <div class="pill" style="margin-bottom:22px;">${q?q.votes:0} votes</div>
+      ${waveform(7,'voice')}
+      <p class="lede" style="margin-top:24px;">Leadership is answering live${state.session.mode==='virtual' ? ' on the call' : ' in the room'}.</p>
+    </div>
+  </div>`;
+}
+
+function viewRoomFollowup(){
+  const ses = state.session;
+  const q = ses.questions.find(x=>x.id===ses.currentQuestionId);
+  return `
+  ${roomHeader()}
+  <div class="answer-stage">
+    <div class="stage-frame">
+      ${frameDots()}
+      <div class="eyebrow" style="color:#2C5C41;">That's been answered.</div>
+      <h2 class="headline-caps" style="margin-top:10px;">Anything to add?</h2>
+      <p class="lede" style="max-width:440px;">${ses.mode==='virtual'
+        ? "Use your meeting platform's raise-hand function if you'd like to follow up."
+        : "Raise your hand in the room if you'd like to follow up."}</p>
+      <div class="pill">Waiting for the host to move to the next question</div>
+    </div>
+  </div>`;
+}
+
+function viewRoomWaitingEnd(){
+  return `
+  ${roomHeader()}
+  <div class="answer-stage">
+    <div class="stage-frame">
+      ${frameDots()}
+      ${waveform(6)}
+      <h2 class="headline-caps" style="margin-top:20px;">All caught up.</h2>
+      <p class="lede">Every question has an answer or is on its way to one. The host will close the session shortly.</p>
+    </div>
+  </div>`;
+}
+
+function viewRoom(){
+  const phase = state.session.phase;
+  let body;
+  if (phase==='setup' || phase==='invited' || phase==='submitting') body = viewRoomSubmitting();
+  else if (phase==='closed') body = viewRoomClosedPool();
+  else if (phase==='voting') body = viewRoomVoting();
+  else if (phase==='winner') body = viewRoomWinner();
+  else if (phase==='answering') body = viewRoomAnswering();
+  else if (phase==='followup') body = remainingCount()>0 ? viewRoomFollowup() : viewRoomWaitingEnd();
+  else if (phase==='ended') { state.view='closing'; return viewClosing(); }
+  else body = viewRoomSubmitting();
+  return `<div class="screen">${body}</div>`;
+}
+
+/* =========================================================
+   VIEW: CLOSING
+========================================================= */
+function viewClosing(){
+  const total = submittedCount();
+  const answered = answeredCount();
+  const remaining = remainingCount();
+  if (state.closingStep === 0 && remaining > 0){
+    return `
+    <div class="screen">
+      <div class="closing-stage">
+        <div class="stage-frame">
+          ${frameDots()}
+          <div class="eyebrow" style="color:var(--orange-deep);">We didn't get to everything.</div>
+          <h2 class="headline-serif">These questions will go to leadership for follow-up.</h2>
+          <div class="stat-row">
+            <div class="stat"><b>${answered}</b><span>Answered live</span></div>
+            <div class="stat"><b>${remaining}</b><span>Going to follow-up</span></div>
+          </div>
+          <button class="btn btn-primary" data-action="closing-continue">Continue</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  return `
+  <div class="screen">
+    <div class="closing-stage">
+      <div class="stage-frame">
+        ${frameDots()}
+        ${waveform(7,'gold')}
+        <h1 class="headline-caps" style="margin-top:24px;">You asked.<br>Leadership listened.</h1>
+        <div class="stat-row">
+          <div class="stat"><b>${total}</b><span>Submitted</span></div>
+          <div class="stat"><b>${answered}</b><span>Answered live</span></div>
+          <div class="stat"><b>${remaining}</b><span>Going to follow-up</span></div>
+        </div>
+        <p class="lede">Thanks for helping shape the conversation.</p>
+        <button class="btn btn-ghost" data-action="restart-demo">Return to landing</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   VIEW: HOST CONTROL ROOM
+========================================================= */
+function hostControlActions(){
+  const ses = state.session;
+  const phase = ses.phase;
+  let actions = [];
+  if (phase==='setup' || phase==='invited'){
+    actions.push(['open-submissions','Open submissions','btn-primary']);
+  } else if (phase==='submitting'){
+    actions.push(['close-submissions','Close submissions','btn-primary']);
+  } else if (phase==='closed'){
+    actions.push(['start-voting','Start voting','btn-primary']);
+  } else if (phase==='voting'){
+    actions.push(['close-voting','Close voting','btn-primary']);
+  } else if (phase==='winner'){
+    actions.push(['move-to-answering','Move to answering','btn-primary']);
+  } else if (phase==='answering'){
+    actions.push(['mark-answered',"That's been answered",'btn-primary']);
+  } else if (phase==='followup'){
+    if (remainingCount() > 0) actions.push(['next-question','Next question','btn-gold']);
+  }
+  return actions;
+}
+
+function viewHostControl(){
+  const ses = state.session;
+  const phase = ses.phase;
+  const pool = ses.questions;
+  const current = ses.questions.find(q=>q.id===ses.currentQuestionId);
+  const actions = hostControlActions();
+
+  const rows = pool.map(q=>`
+    <div class="host-q-row ${q.answered?'answered':''}">
+      ${avatarBlob(q.avatarId,36)}
+      <div class="txt">${esc(q.text)}${q.answered ? ' <span class="own-tag">· answered</span>' : ''}</div>
+      ${(phase==='voting'||phase==='winner'||phase==='answering'||phase==='followup') && !q.answered ? `<div class="votes">${q.votes}</div>` : ''}
+      ${!q.answered && (phase==='submitting'||phase==='closed') ? `<button class="icon-btn" title="Remove question" data-action="remove-question" data-qid="${q.id}">✕</button>` : ''}
+    </div>`).join('') || `<p style="color:var(--muted); font-size:14px;">No questions yet. Once you open submissions, they'll appear here as employees add them.</p>`;
+
+  return `
+  <div class="host-shell">
+    <div class="host-side">
+      <div>
+        <div class="eyebrow">Host control room</div>
+        <div class="phase-badge" style="margin-top:10px;">${phase.toUpperCase()}</div>
+      </div>
+      <div class="stat-block"><div class="num">${submittedCount()}</div><div class="lbl">Questions submitted</div></div>
+      <div class="stat-block"><div class="num">${answeredCount()}</div><div class="lbl">Answered</div></div>
+      <div class="stat-block"><div class="num">${remainingCount()}</div><div class="lbl">Remaining</div></div>
+      <div class="stat-block"><div class="num">${ses.presence}</div><div class="lbl">People in room</div></div>
+      <div class="control-actions">
+        ${actions.map(a=>`<button class="btn ${a[2]} btn-full" data-action="${a[0]}">${a[1]}</button>`).join('')}
+        ${phase!=='ended' ? `<button class="btn btn-ghost btn-full" data-action="end-session">End session</button>` : `<button class="btn btn-ghost btn-full" data-action="restart-demo">Start a new session</button>`}
+      </div>
+      <div class="badge-anon" style="justify-content:center;">${ICONS.mic} Identities hidden</div>
+    </div>
+    <div class="host-main">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <h2 class="headline-serif" style="font-size:26px;">Live session</h2>
+        <button class="back-link" data-action="go-landing">Exit</button>
+      </div>
+      ${current && (phase==='winner'||phase==='answering'||phase==='followup') ? `
+      <div class="host-current">
+        <div class="eyebrow">Now answering</div>
+        <div class="q">"${esc(current.text)}"</div>
+        <div class="pill" style="margin-top:10px;">${current.votes} votes</div>
+      </div>` : ''}
+      <div class="section-title">Question pool</div>
+      <div class="host-q-list">${rows}</div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   ROLE SWITCHER (demo aid)
+========================================================= */
+function roleSwitcher(){
+  if (!state.session.created && !state.me.joined) return '';
+  const role = state.demoRole || (state.view.startsWith('host') ? 'host' : 'employee');
+  return `
+  <div class="role-switcher">
+    <button class="${role==='employee'?'active':''}" data-action="switch-role" data-role="employee">Employee</button>
+    <button class="${role==='host'?'active':''}" data-action="switch-role" data-role="host">Host</button>
+  </div>`;
+}
+
+/* =========================================================
+   ROUTER / RENDER
+========================================================= */
+function renderApp(){
+  let html = '';
+  switch(state.view){
+    case 'landing': html = viewLanding(); break;
+    case 'hostSetup': html = viewHostSetup(); break;
+    case 'hostReady': html = viewHostReady(); break;
+    case 'hostControl': html = viewHostControl(); break;
+    case 'employeeInvite': html = viewEmployeeInvite(); break;
+    case 'employeeWelcome': html = viewEmployeeWelcome(); break;
+    case 'avatarSelect': html = viewAvatarSelect(); break;
+    case 'room': html = viewRoom(); break;
+    case 'closing': html = viewClosing(); break;
+    default: html = viewLanding();
+  }
+  document.getElementById('app').innerHTML = html + roleSwitcher();
+}
+
+/* =========================================================
+   ACTIONS
+========================================================= */
+function handleAction(action, el){
+  switch(action){
+    case 'go-landing': state.view='landing'; break;
+
+    case 'go-host-setup': state.demoRole='host'; state.view='hostSetup'; break;
+    case 'set-mode': state.session.mode = el.dataset.mode; break;
+    case 'send-invitations': {
+      readForm();
+      state.session.created = true;
+      state.session.phase = 'invited';
+      state.view = 'hostReady';
+      break;
+    }
+    case 'copy-join-link': toast('Join link copied'); break;
+    case 'copy-meeting-link': toast('Meeting link copied'); break;
+    case 'toggle-qr': {
+      const slot = document.getElementById('qr-slot');
+      if (slot) slot.innerHTML = slot.innerHTML ? '' : `<div class="qr-box">${ICONS.qr}</div>`;
+      return; // avoid full re-render so toggle feels snappy
+    }
+    case 'enter-host-control': state.demoRole='host'; state.view='hostControl'; break;
+
+    case 'go-employee-invite': state.demoRole='employee'; state.session.created = true; state.view='employeeInvite'; break;
+    case 'simulate-join-meeting': toast('This would open your video meeting'); return;
+    case 'go-employee-welcome': state.view='employeeWelcome'; break;
+    case 'go-avatar-select': state.view='avatarSelect'; break;
+    case 'choose-avatar': state.me.avatar = el.dataset.avatar; break;
+    case 'confirm-enter-room': {
+      state.me.joined = true;
+      state.view = 'room';
+      if (state.session.phase==='setup' || state.session.phase==='invited'){
+        state.session.phase = 'submitting';
+      }
+      seedSubmissions();
+      break;
+    }
+
+    case 'submit-question': {
+      const ta = document.getElementById('ask-input');
+      const text = ta ? ta.value.trim() : '';
+      if (!text) { toast('Type your question first'); return; }
+      const q = freshQuestion(text, state.me.avatar, {mine:true});
+      state.session.questions.unshift(q);
+      state.me.myQuestionId = q.id;
+      toast('You just added your voice.');
+      break;
+    }
+
+    case 'open-submissions': {
+      state.session.phase='submitting';
+      seedSubmissions();
+      break;
+    }
+    case 'close-submissions': state.session.phase='closed'; clearSeedTimers(); break;
+    case 'remove-question': {
+      state.session.questions = state.session.questions.filter(q=>q.id!==el.dataset.qid);
+      break;
+    }
+    case 'start-voting': startVotingRound(); break;
+    case 'vote-question': {
+      if (state.me.votedThisRound) return;
+      const q = state.session.questions.find(x=>x.id===el.dataset.qid);
+      if (!q || q.mine) return;
+      q.votes += 1;
+      state.me.votedThisRound = true;
+      state.me.justVotedId = q.id;
+      toast('You just voted.');
+      break;
+    }
+    case 'close-voting': closeVotingPickWinner(); break;
+    case 'move-to-answering': state.session.phase='answering'; break;
+    case 'mark-answered': markCurrentAnswered(); break;
+    case 'next-question': goNextRound(); break;
+    case 'end-session': endSession(); state.view='closing'; break;
+    case 'closing-continue': state.closingStep = 1; break;
+    case 'restart-demo': resetAll(); return;
+
+    case 'switch-role': {
+      const role = el.dataset.role;
+      state.demoRole = role;
+      if (role==='host'){
+        state.view = state.session.created ? 'hostControl' : 'hostSetup';
+      } else {
+        if (state.me.joined) state.view='room';
+        else if (state.me.avatar) state.view='avatarSelect';
+        else state.view = state.session.created ? 'employeeInvite' : 'employeeInvite';
+      }
+      break;
+    }
+    default: break;
+  }
+  renderApp();
+}
+
+function readForm(){
+  const c = state.session.config;
+  document.querySelectorAll('[data-field]').forEach(inp=>{
+    const f = inp.dataset.field;
+    c[f] = f==='participants' || f==='duration' ? (parseInt(inp.value,10)||c[f]) : inp.value;
+  });
+}
+
+document.getElementById('app').addEventListener('click', function(e){
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  handleAction(el.dataset.action, el);
+});
+
+/* live-feel ticker: keeps waveform/presence lively while sitting in room/host views */
+setInterval(()=>{
+  if (state.view==='room' && (state.session.phase==='submitting')){
+    if (Math.random() < 0.3){
+      state.session.presence = Math.max(6, state.session.presence + (Math.random()<0.5?-1:1));
+      renderApp();
+    }
+  }
+}, 4000);
+
+renderApp();
+</script>
+</body>
+</html>
