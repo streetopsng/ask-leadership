@@ -3,12 +3,12 @@ import { useSession } from '../../context/SessionContext';
 import Button from '../common/Button';
 
 export default function HostSetupView() {
-  const { session, updateConfig, setSessionMode, sendInvitations, setView } = useSession();
-  const { config, mode } = session;
+  const { session, updateConfig, setSessionMode, createSession, setView } = useSession();
+  const { config, mode } = session || {};
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    sendInvitations();
+    await createSession(config);
   };
 
   return (

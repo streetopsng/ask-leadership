@@ -4,8 +4,8 @@ import { useSession } from '../../context/SessionContext';
 export default function RoleSwitcher() {
   const { session, me, demoRole, view, switchRole } = useSession();
 
-  // Show if session was created or employee joined (matching new.html)
-  if (!session.created && !me.joined) return null;
+  // Show if session exists or employee joined
+  if (!session && !me.joined) return null;
 
   const currentRole = demoRole || (view.startsWith('host') ? 'host' : 'employee');
 
