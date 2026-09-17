@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Sessions collection
+    match /sessions/{sessionId} {
+      // Anyone authenticated can create a session
+      allow create: if request.auth != null;
+
+      // Only the host can update session fields (phase, round, etc.)
+      allow update: if request.auth != null
+        && request.auth.uid == resource.data.hostUid;
+
+      // Anyone authenticated can read (for join-by-code)
+      allow read: if request.auth != null;
+
+      // Questions subcollection
+      match /questions/{questionId} {
+        // Participants can create questions (with their own uid)
+        allow create: if request.auth != null
+          && request.resource.data.participantUid == request.auth.uid;
+
+        // Only the host can update (mark answered) or delete questions
+        allow update, delete: if request.auth != null
+          && request.auth.uid == get(/databases/$(database)/documents/sessions/$(sessionId)).data.hostUid;
+
+        // Anyone authenticated can read questions
+        allow read: if request.auth != null;
+      }
+
+      // Votes subcollection
+      match /votes/{voteId} {
+        // Participants can create one vote per round (enforced by doc ID: round_uid)
+        allow create: if request.auth != null
+          && voteId.split('_')[1] == request.auth.uid;
+
+        // No updates or deletes allowed
+        allow update, delete: if false;
+
+        // Anyone authenticated can read votes
+        allow read: if request.auth != null;
+      }
+    }
+  }
+}
