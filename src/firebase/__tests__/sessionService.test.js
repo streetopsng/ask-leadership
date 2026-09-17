@@ -7,6 +7,7 @@ const mockOnSnapshot = vi.fn()
 const mockUpdateDoc = vi.fn().mockResolvedValue(undefined)
 const mockIncrement = vi.fn((n) => ({ _increment: n }))
 const mockServerTimestamp = vi.fn(() => 'server-timestamp')
+const mockRunTransaction = vi.fn()
 
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db, _col, ...rest) => ({ id: rest[rest.length - 1] })),
@@ -16,6 +17,7 @@ vi.mock('firebase/firestore', () => ({
   updateDoc: (...args) => mockUpdateDoc(...args),
   increment: (...args) => mockIncrement(...args),
   serverTimestamp: (...args) => mockServerTimestamp(...args),
+  runTransaction: (...args) => mockRunTransaction(...args),
 }))
 
 vi.mock('../config', () => ({
@@ -87,27 +89,35 @@ describe('sessionService', () => {
   })
 
   describe('voteFirestoreQuestion', () => {
-    it('creates marker doc and increments votes', async () => {
-      mockGetDoc.mockResolvedValue({ exists: () => false })
+    it('creates marker doc and increments votes via transaction', async () => {
+      mockRunTransaction.mockImplementation(async (db, fn) => {
+        const tx = {
+          get: vi.fn().mockResolvedValue({ exists: () => false }),
+          set: vi.fn(),
+          update: vi.fn(),
+        }
+        await fn(tx)
+        expect(tx.set).toHaveBeenCalledOnce()
+        expect(tx.update).toHaveBeenCalledOnce()
+      })
 
-      await mod.voteFirestoreQuestion('AL-TEST', 'q1', 1, 'user-abc')
-
-      // Marker doc created
-      expect(mockSetDoc).toHaveBeenCalledOnce()
-      const [markerRef, markerData] = mockSetDoc.mock.calls[0]
-      expect(markerRef.id).toBe('1_user-abc')
-      expect(markerData).toMatchObject({ votedFor: 'q1' })
-
-      // Votes incremented
-      expect(mockUpdateDoc).toHaveBeenCalledOnce()
+      const result = await mod.voteFirestoreQuestion('AL-TEST', 'q1', 1, 'user-abc')
+      expect(result).toBe(true)
+      expect(mockRunTransaction).toHaveBeenCalledOnce()
     })
 
     it('rejects if already voted this round', async () => {
-      mockGetDoc.mockResolvedValue({ exists: () => true })
+      mockRunTransaction.mockImplementation(async (db, fn) => {
+        const tx = {
+          get: vi.fn().mockResolvedValue({ exists: () => true }),
+          set: vi.fn(),
+          update: vi.fn(),
+        }
+        await fn(tx)
+      })
 
       const result = await mod.voteFirestoreQuestion('AL-TEST', 'q1', 1, 'user-abc')
       expect(result).toBe(false)
-      expect(mockSetDoc).not.toHaveBeenCalled()
     })
   })
 
