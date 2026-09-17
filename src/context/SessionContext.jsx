@@ -71,16 +71,6 @@ export function SessionProvider({ children }) {
     });
   }, []);
 
-  // Join session from URL on mount
-  const joinSessionRef = useRef(joinSession);
-  joinSessionRef.current = joinSession;
-
-  useEffect(() => {
-    if (urlJoinCode && uid_) {
-      joinSessionRef.current(urlJoinCode);
-    }
-  }, [urlJoinCode, uid_]);
-
   // Subscribe to Firestore session when created/joined
   useEffect(() => {
     if (!session?.id || !isFirebaseConfigured() || isDemoMode()) return;
@@ -181,6 +171,16 @@ export function SessionProvider({ children }) {
       setView('avatarSelect');
     }
   }, [showToast]);
+
+  // Join session from URL on mount (ref to avoid stale closure)
+  const joinSessionRef = useRef(joinSession);
+  joinSessionRef.current = joinSession;
+
+  useEffect(() => {
+    if (urlJoinCode && uid_) {
+      joinSessionRef.current(urlJoinCode);
+    }
+  }, [urlJoinCode, uid_]);
 
   const chooseAvatar = (avatarId) => {
     setMe((prev) => ({ ...prev, avatar: avatarId }));
