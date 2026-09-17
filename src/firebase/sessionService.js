@@ -6,6 +6,7 @@ import {
   onSnapshot,
   increment,
   serverTimestamp,
+  runTransaction,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './config';
 
@@ -90,21 +91,27 @@ export async function submitFirestoreQuestion(sessionId, participantUid, questio
 }
 
 /**
- * Votes on a question. Creates a per-round marker doc to enforce one-vote-per-participant.
+ * Votes on a question. Uses a transaction to atomically check the marker and increment votes.
  */
 export async function voteFirestoreQuestion(sessionId, questionId, round, participantUid) {
   if (!isFirebaseConfigured()) return false;
 
   const marker = voteRef(sessionId, round, participantUid);
-  const markerSnap = await getDoc(marker);
-  if (markerSnap.exists()) return false; // already voted this round
+  const qRef = questionRef(sessionId, questionId);
 
-  await setDoc(marker, { votedFor: questionId, createdAt: serverTimestamp() });
-  await updateDoc(questionRef(sessionId, questionId), {
-    votes: increment(1),
-  });
+  try {
+    await runTransaction(db, async (tx) => {
+      const markerSnap = await tx.get(marker);
+      if (markerSnap.exists()) throw new Error('ALREADY_VOTED');
 
-  return true;
+      tx.set(marker, { votedFor: questionId, createdAt: serverTimestamp() });
+      tx.update(qRef, { votes: increment(1) });
+    });
+    return true;
+  } catch (err) {
+    if (err.message === 'ALREADY_VOTED') return false;
+    throw err;
+  }
 }
 
 /**
@@ -138,6 +145,30 @@ export async function updateFirestoreSessionPhase(sessionId, uid, patch) {
     ...patch,
     updatedAt: serverTimestamp(),
   });
+
+  return true;
+}
+
+/**
+ * Resets votes on all unanswered questions for a new round.
+ */
+export async function resetQuestionVotes(sessionId) {
+  if (!isFirebaseConfigured()) return false;
+
+  const snap = await getDoc(sessionRef(sessionId));
+  if (!snap.exists()) return false;
+
+  // Get all unanswered questions and reset their votes
+  const { collection, query, where, getDocs, writeBatch } = await import('firebase/firestore');
+  const questionsRef = collection(db, SESSIONS, sessionId, 'questions');
+  const unanswered = query(questionsRef, where('answered', '==', false));
+  const snapshot = await getDocs(unanswered);
+
+  const batch = writeBatch(db);
+  snapshot.docs.forEach((doc) => {
+    batch.update(doc.ref, { votes: 0 });
+  });
+  await batch.commit();
 
   return true;
 }

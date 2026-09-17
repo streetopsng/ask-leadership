@@ -8,6 +8,7 @@ import {
   voteFirestoreQuestion,
   markFirestoreQuestionAnswered,
   updateFirestoreSessionPhase,
+  resetQuestionVotes,
 } from '../firebase/sessionService';
 import { goOnline, goOffline, subscribeToPresence } from '../firebase/presence';
 import { AVATARS } from '../constants/avatars';
@@ -59,6 +60,7 @@ export function SessionProvider({ children }) {
   const [me, setMe] = useState({ avatar: null, joined: false, myQuestionId: null, votedThisRound: false, justVotedId: null });
   const unsubRef = useRef(null);
   const unsubPresenceRef = useRef(null);
+  const toastTimeoutsRef = useRef(new Map());
 
   // Auth on mount
   useEffect(() => {
@@ -112,7 +114,11 @@ export function SessionProvider({ children }) {
   const showToast = useCallback((msg) => {
     const id = uid();
     setToasts((prev) => [...prev, { id, text: msg }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 2500);
+    const timeout = setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+      toastTimeoutsRef.current.delete(id);
+    }, 2500);
+    toastTimeoutsRef.current.set(id, timeout);
   }, []);
 
   const activePool = session?.questions?.filter((q) => !q.answered) || [];
@@ -190,7 +196,7 @@ export function SessionProvider({ children }) {
     setMe((prev) => ({ ...prev, joined: true }));
     setSession((prev) => {
       const questions = prev.questions.length === 0 ? getSeedQuestions() : prev.questions;
-      return { ...prev, phase: 'submitting', questions };
+      return { ...prev, questions };
     });
     setView('room');
   };
@@ -238,11 +244,15 @@ export function SessionProvider({ children }) {
     setSession((prev) => ({
       ...prev,
       phase: 'voting',
+      round: prev.round + 1,
       questions: prev.questions.map((q) => (!q.answered ? { ...q, votes: 0 } : q)),
     }));
     setMe((prev) => ({ ...prev, votedThisRound: false, justVotedId: null }));
 
-    await syncToFirestore(() => updateFirestoreSessionPhase(session.id, uid_, { phase: 'voting' }));
+    await syncToFirestore(async () => {
+      await updateFirestoreSessionPhase(session.id, uid_, { phase: 'voting', round: session.round + 1 });
+      await resetQuestionVotes(session.id);
+    });
   };
 
   const voteQuestion = async (qid) => {
@@ -363,6 +373,14 @@ export function SessionProvider({ children }) {
     restartDemo,
     switchRole,
   };
+
+  // Cleanup toast timeouts on unmount
+  useEffect(() => {
+    return () => {
+      toastTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+      toastTimeoutsRef.current.clear();
+    };
+  }, []);
 
   return (
     <SessionContext.Provider value={value}>
