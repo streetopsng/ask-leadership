@@ -12,19 +12,6 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-export const db = getFirestore(app);
-export const auth = getAuth(app);
-
-export let analytics = null;
-if (typeof window !== 'undefined') {
-  isSupported().then((supported) => {
-    if (supported) {
-      analytics = getAnalytics(app);
-    }
-  }).catch(() => {});
-}
-
 export const isFirebaseConfigured = () => {
   return (
     !!firebaseConfig.apiKey &&
@@ -37,6 +24,27 @@ export const isFirebaseConfigured = () => {
 export const isDemoMode = () => {
   return import.meta.env.VITE_DEMO_MODE === 'true';
 };
+
+// Only initialize Firebase when configured — otherwise import fails
+let app = null;
+let db = null;
+let auth = null;
+
+if (isFirebaseConfigured()) {
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+  db = getFirestore(app);
+  auth = getAuth(app);
+
+  if (typeof window !== 'undefined') {
+    isSupported().then((supported) => {
+      if (supported) {
+        getAnalytics(app);
+      }
+    }).catch(() => {});
+  }
+}
+
+export { app, db, auth };
 
 export async function signInAnonymouslyToFirebase() {
   if (!isFirebaseConfigured()) return null;
