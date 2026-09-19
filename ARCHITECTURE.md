@@ -43,6 +43,10 @@ presence/{sessionId}/{uid}
 
 All writes to `questions/` and `votes/` use **atomic operations** (FieldValue.increment, setDoc with merge, transactions). No write replaces an entire array. This prevents the last-write-wins clobber that the original single-doc design had.
 
+## Realtime Sync
+
+Firestore is the source of truth for the room. Every joined client subscribes (`onSnapshot`) to the session doc, the `questions` subcollection (newest first), and its own `round_uid` vote marker. New questions, vote counts, and phase changes stream to every client without reloads. Optimistic writes only exist locally: a submitted question is appended immediately, then confirmed (by id) when the snapshot returns; a vote updates the count only via the server transaction stream. `mine` and `justVotedId` are derived, never stored: `mine = participantUid === myUid`.
+
 ## Session Lifecycle
 
 ```
@@ -97,7 +101,7 @@ src/
 │   └── SessionContext.jsx      # state machine (single source of truth for local state)
 ├── firebase/
 │   ├── config.js               # Firebase init, isFirebaseConfigured()
-│   └── sessionService.js       # Firestore operations (to be rewritten for subcollections)
+│   └── sessionService.js       # Firestore operations + realtime subscriptions (session doc, questions, vote marker)
 ├── components/
 │   ├── views/                  # 9 views mapped to session phases
 │   │   ├── LandingView.jsx

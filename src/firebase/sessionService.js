@@ -3,10 +3,17 @@ import {
   setDoc,
   getDoc,
   updateDoc,
+  deleteDoc,
   onSnapshot,
   increment,
   serverTimestamp,
   runTransaction,
+  collection,
+  query,
+  orderBy,
+  getDocs,
+  where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './config';
 
@@ -66,6 +73,41 @@ export function subscribeToFirestoreSession(sessionId, onUpdate, onError) {
       if (snapshot.exists()) {
         onUpdate({ id: snapshot.id, ...snapshot.data() });
       }
+    },
+    onError
+  );
+}
+
+/**
+ * Subscribes to the live questions feed. Streams raw question docs,
+ * newest first, to every client that has joined the session.
+ */
+export function subscribeToFirestoreQuestions(sessionId, onUpdate, onError) {
+  if (!isFirebaseConfigured() || !sessionId) return () => {};
+
+  const q = query(
+    collection(db, SESSIONS, sessionId, 'questions'),
+    orderBy('createdAt', 'desc')
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => onUpdate(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    onError
+  );
+}
+
+/**
+ * Subscribes to the caller's own vote marker for the current round,
+ * so a client knows whether it has voted this round and for what.
+ */
+export function subscribeToMyVote(sessionId, round, uid, onUpdate, onError) {
+  if (!isFirebaseConfigured() || !sessionId || !round || !uid) return () => {};
+
+  return onSnapshot(
+    voteRef(sessionId, round, uid),
+    (snapshot) => {
+      onUpdate(snapshot.exists() ? { votedFor: snapshot.data().votedFor } : null);
     },
     onError
   );
@@ -133,6 +175,16 @@ export async function markFirestoreQuestionAnswered(sessionId, questionId) {
 }
 
 /**
+ * Deletes a question. Firestore rules restrict this to the host.
+ */
+export async function deleteFirestoreQuestion(sessionId, questionId) {
+  if (!isFirebaseConfigured()) return false;
+
+  await deleteDoc(questionRef(sessionId, questionId));
+  return true;
+}
+
+/**
  * Updates session phase. Only callable by hostUid.
  */
 export async function updateFirestoreSessionPhase(sessionId, uid, patch) {
@@ -158,8 +210,6 @@ export async function resetQuestionVotes(sessionId) {
   const snap = await getDoc(sessionRef(sessionId));
   if (!snap.exists()) return false;
 
-  // Get all unanswered questions and reset their votes
-  const { collection, query, where, getDocs, writeBatch } = await import('firebase/firestore');
   const questionsRef = collection(db, SESSIONS, sessionId, 'questions');
   const unanswered = query(questionsRef, where('answered', '==', false));
   const snapshot = await getDocs(unanswered);

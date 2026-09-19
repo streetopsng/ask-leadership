@@ -1,16 +1,67 @@
-# React + Vite
+# Ask Leadership
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Real-time, anonymous Q&A for internal meetings. Employees submit questions, vote on what matters, and leadership answers live.
 
-Currently, two official plugins are available:
+Firebase-backed, pseudonymous participation, multi-device. React + Vite + Tailwind.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Why anonymous?
 
-## React Compiler
+Participants sign in with Firebase Anonymous Auth — one device = one stable pseudonymous identity, enough for the server to enforce one-vote-per-round and rate limits, anonymous enough that questions can never be linked to a real person. See `docs/adr/0001-pseudonymous-participation.md` for the trade-offs.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Getting started
 
-## Expanding the Oxlint configuration
+```bash
+npm install
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+# configure Firebase (see .env.example) — or run in demo mode below
+cp .env.example .env.local   # fill in your project's values
+
+npm run dev
+```
+
+## Demo mode
+
+With Firebase unconfigured, or by setting `VITE_DEMO_MODE=true`, the app runs entirely from localStorage using the same state machine — useful for pitches and offline demos.
+
+```bash
+VITE_DEMO_MODE=true npm run dev
+```
+
+## Scripts
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Vite dev server |
+| `npm run build` | Production build to `dist/` |
+| `npm run preview` | Serve the built app |
+| `npm run lint` | Oxlint |
+| `npm run test` | Vitest unit tests |
+| `npm run test:watch` | Vitest watch mode |
+
+## Tests
+
+Unit tests run with vitest, no Firebase required:
+
+```bash
+npm run test
+```
+
+Emulator-based integration tests (Firestore + Auth) are in progress — the `test:integration` script and suite land with the feature plan tracked in `.scratch/production-hardening/`.
+
+## Deploy
+
+`firebase.json` wires Firestore rules + indexes, RTDB rules, and Hosting (`dist/`).
+
+```bash
+npm run build
+firebase deploy
+```
+
+## How it works
+
+- Session ID is the join code (`AL-XXX`); `?join=AL-XXX` takes a participant straight into the room.
+- Questions and votes stream live from Firestore — every client sees new questions and vote counts without reloading.
+- The host controls the session lifecycle: `setup → submitting → voting → answering → followup → ended`, and runs voting rounds.
+- Presence (people in the room) comes from the Realtime Database via `onDisconnect` — see `src/firebase/presence.js`.
+
+Domain vocabulary lives in `CONTEXT.md`; data models and security rules are in `ARCHITECTURE.md`.

@@ -20,11 +20,10 @@ const SCATTER_ITEMS = [
 ];
 
 export default function LandingView() {
-  const { setView, setDemoRole, joinSession } = useSession();
+  const { beginHostSetup, joinSession } = useSession();
 
   const handleHostClick = () => {
-    setDemoRole('host');
-    setView('hostSetup');
+    beginHostSetup();
   };
 
   const handlePreviewEmployee = () => {

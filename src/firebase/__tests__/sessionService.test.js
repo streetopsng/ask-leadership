@@ -5,9 +5,11 @@ const mockSetDoc = vi.fn().mockResolvedValue(undefined)
 const mockGetDoc = vi.fn()
 const mockOnSnapshot = vi.fn()
 const mockUpdateDoc = vi.fn().mockResolvedValue(undefined)
+const mockDeleteDoc = vi.fn().mockResolvedValue(undefined)
 const mockIncrement = vi.fn((n) => ({ _increment: n }))
 const mockServerTimestamp = vi.fn(() => 'server-timestamp')
 const mockRunTransaction = vi.fn()
+const mockOrderBy = vi.fn()
 
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db, _col, ...rest) => ({ id: rest[rest.length - 1] })),
@@ -15,9 +17,16 @@ vi.mock('firebase/firestore', () => ({
   getDoc: (...args) => mockGetDoc(...args),
   onSnapshot: (...args) => mockOnSnapshot(...args),
   updateDoc: (...args) => mockUpdateDoc(...args),
+  deleteDoc: (...args) => mockDeleteDoc(...args),
   increment: (...args) => mockIncrement(...args),
   serverTimestamp: (...args) => mockServerTimestamp(...args),
   runTransaction: (...args) => mockRunTransaction(...args),
+  collection: vi.fn(),
+  query: vi.fn(),
+  orderBy: (...args) => mockOrderBy(...args),
+  where: vi.fn(),
+  getDocs: vi.fn(),
+  writeBatch: vi.fn(() => ({ update: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) })),
 }))
 
 vi.mock('../config', () => ({
@@ -133,6 +142,59 @@ describe('sessionService', () => {
       // Second call: session doc
       const [, sessionData] = mockUpdateDoc.mock.calls[1]
       expect(sessionData).toMatchObject({ phase: 'followup' })
+    })
+  })
+
+  describe('deleteFirestoreQuestion', () => {
+    it('deletes the question doc from the subcollection', async () => {
+      await mod.deleteFirestoreQuestion('AL-TEST', 'q1')
+
+      expect(mockDeleteDoc).toHaveBeenCalledOnce()
+      expect(mockDeleteDoc.mock.calls[0][0].id).toBe('q1')
+    })
+  })
+
+  describe('subscribeToFirestoreQuestions', () => {
+    it('streams the questions subcollection newest-first', () => {
+      const update = vi.fn()
+      const snapshot = {
+        docs: [
+          { id: 'q1', data: () => ({ text: 'First', votes: 1 }) },
+          { id: 'q2', data: () => ({ text: 'Second', votes: 2 }) },
+        ],
+      }
+      mockOnSnapshot.mockImplementation((_q, cb) => {
+        cb(snapshot)
+        return () => {}
+      })
+
+      mod.subscribeToFirestoreQuestions('AL-TEST', update)
+      expect(mockOrderBy).toHaveBeenCalledWith('createdAt', 'desc')
+      expect(update).toHaveBeenCalledWith([
+        { id: 'q1', text: 'First', votes: 1 },
+        { id: 'q2', text: 'Second', votes: 2 },
+      ])
+    })
+  })
+
+  describe('subscribeToMyVote', () => {
+    it('streams the caller vote marker, or null when absent', () => {
+      const update = vi.fn()
+      mockOnSnapshot.mockImplementation((_ref, cb) => {
+        cb({ exists: () => true, data: () => ({ votedFor: 'q1' }) })
+        return () => {}
+      })
+
+      mod.subscribeToMyVote('AL-TEST', 2, 'user-abc', update)
+      expect(update).toHaveBeenCalledWith({ votedFor: 'q1' })
+
+      update.mockReset()
+      mockOnSnapshot.mockImplementation((_ref, cb) => {
+        cb({ exists: () => false })
+        return () => {}
+      })
+      mod.subscribeToMyVote('AL-TEST', 2, 'user-abc', update)
+      expect(update).toHaveBeenCalledWith(null)
     })
   })
 

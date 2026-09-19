@@ -6,7 +6,8 @@ import { QrIcon } from '../../constants/icons';
 
 export default function EmployeeInviteView() {
   const { session, setView, showToast } = useSession();
-  const { mode, config } = session;
+  const { config } = session;
+  const mode = session?.config?.mode;
 
   const handleSimulateMeeting = () => {
     showToast('This would open your video meeting');

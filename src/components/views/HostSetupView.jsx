@@ -4,7 +4,8 @@ import Button from '../common/Button';
 
 export default function HostSetupView() {
   const { session, updateConfig, setSessionMode, createSession, setView } = useSession();
-  const { config, mode } = session || {};
+  const { config } = session || {};
+  const mode = session?.config?.mode;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
