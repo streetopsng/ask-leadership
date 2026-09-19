@@ -5,7 +5,8 @@ import { MicIcon, QrIcon } from '../../constants/icons';
 
 export default function HostReadyView() {
   const { session, setView, showToast } = useSession();
-  const { config, mode } = session;
+  const { config } = session;
+  const mode = session?.config?.mode;
   const [showQr, setShowQr] = useState(false);
 
   const joinUrl = `${window.location.origin}/?join=${session.id}`;

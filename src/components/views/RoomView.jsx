@@ -10,6 +10,7 @@ export default function RoomView() {
   const {
     session,
     me,
+    questions,
     submittedCount,
     answeredCount,
     remainingCount,
@@ -19,7 +20,8 @@ export default function RoomView() {
     voteQuestion,
   } = useSession();
 
-  const { phase, questions, presence, round, mode } = session;
+  const { phase, presence, round } = session;
+  const mode = session?.config?.mode;
   const [questionInput, setQuestionInput] = useState('');
 
   const handleAskSubmit = (e) => {

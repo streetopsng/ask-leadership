@@ -20,11 +20,15 @@ const SCATTER_ITEMS = [
 ];
 
 export default function LandingView() {
-  const { setView, setDemoRole, previewEmployeeFlow } = useSession();
+  const { beginHostSetup, joinSession } = useSession();
 
   const handleHostClick = () => {
-    setDemoRole('host');
-    setView('hostSetup');
+    beginHostSetup();
+  };
+
+  const handlePreviewEmployee = () => {
+    setDemoRole('employee');
+    joinSession('DEMO-001');
   };
 
   return (
@@ -124,7 +128,7 @@ export default function LandingView() {
         </p>
         <button
           type="button"
-          onClick={previewEmployeeFlow}
+          onClick={handlePreviewEmployee}
           className="btn-demo"
         >
           Preview the employee experience →

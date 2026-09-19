@@ -1,42 +1,77 @@
 import {
   doc,
   setDoc,
+  getDoc,
   updateDoc,
+  deleteDoc,
   onSnapshot,
-  arrayUnion,
+  increment,
   serverTimestamp,
+  runTransaction,
+  collection,
+  query,
+  orderBy,
+  getDocs,
+  where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './config';
 
-const SESSIONS_COLLECTION = 'sessions';
+const SESSIONS = 'sessions';
 
-/**
- * Creates a new Ask Leadership session in Firestore
- */
-export async function createFirestoreSession(sessionData) {
-  if (!isFirebaseConfigured()) return null;
+function sessionRef(id) {
+  return doc(db, SESSIONS, id);
+}
 
-  const sessionRef = doc(db, SESSIONS_COLLECTION, sessionData.id);
-  await setDoc(sessionRef, {
-    ...sessionData,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-  return sessionData.id;
+function questionRef(sessionId, questionId) {
+  return doc(db, SESSIONS, sessionId, 'questions', questionId);
+}
+
+function voteRef(sessionId, round, uid) {
+  return doc(db, SESSIONS, sessionId, 'votes', `${round}_${uid}`);
 }
 
 /**
- * Subscribes to real-time session changes
+ * Creates a new session with hostUid, phase setup, and config.
+ */
+export async function createFirestoreSession(sessionId, hostUid, config) {
+  if (!isFirebaseConfigured()) return null;
+
+  await setDoc(sessionRef(sessionId), {
+    hostUid,
+    phase: 'setup',
+    round: 1,
+    currentQuestionId: null,
+    config,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  return sessionId;
+}
+
+/**
+ * Fetches a session by ID (for join-by-code).
+ */
+export async function getFirestoreSession(sessionId) {
+  if (!isFirebaseConfigured()) return null;
+
+  const snap = await getDoc(sessionRef(sessionId));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() };
+}
+
+/**
+ * Subscribes to real-time session changes.
  */
 export function subscribeToFirestoreSession(sessionId, onUpdate, onError) {
   if (!isFirebaseConfigured() || !sessionId) return () => {};
 
-  const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
   return onSnapshot(
-    sessionRef,
+    sessionRef(sessionId),
     (snapshot) => {
       if (snapshot.exists()) {
-        onUpdate(snapshot.data());
+        onUpdate({ id: snapshot.id, ...snapshot.data() });
       }
     },
     onError
@@ -44,66 +79,146 @@ export function subscribeToFirestoreSession(sessionId, onUpdate, onError) {
 }
 
 /**
- * Submits a new anonymous question to the session
+ * Subscribes to the live questions feed. Streams raw question docs,
+ * newest first, to every client that has joined the session.
  */
-export async function submitFirestoreQuestion(sessionId, question) {
-  if (!isFirebaseConfigured()) return false;
+export function subscribeToFirestoreQuestions(sessionId, onUpdate, onError) {
+  if (!isFirebaseConfigured() || !sessionId) return () => {};
 
-  const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
-  await updateDoc(sessionRef, {
-    questions: arrayUnion(question),
-    updatedAt: serverTimestamp(),
-  });
-  return true;
-}
-
-/**
- * Updates the session phase and status
- */
-export async function updateFirestoreSessionPhase(sessionId, phasePatch) {
-  if (!isFirebaseConfigured()) return false;
-
-  const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
-  await updateDoc(sessionRef, {
-    ...phasePatch,
-    updatedAt: serverTimestamp(),
-  });
-  return true;
-}
-
-/**
- * Upvotes a question
- */
-export async function voteFirestoreQuestion(sessionId, questionId, currentQuestions) {
-  if (!isFirebaseConfigured()) return false;
-
-  const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
-  const updatedQuestions = currentQuestions.map((q) =>
-    q.id === questionId ? { ...q, votes: (q.votes || 0) + 1 } : q
+  const q = query(
+    collection(db, SESSIONS, sessionId, 'questions'),
+    orderBy('createdAt', 'desc')
   );
 
-  await updateDoc(sessionRef, {
-    questions: updatedQuestions,
+  return onSnapshot(
+    q,
+    (snapshot) => onUpdate(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    onError
+  );
+}
+
+/**
+ * Subscribes to the caller's own vote marker for the current round,
+ * so a client knows whether it has voted this round and for what.
+ */
+export function subscribeToMyVote(sessionId, round, uid, onUpdate, onError) {
+  if (!isFirebaseConfigured() || !sessionId || !round || !uid) return () => {};
+
+  return onSnapshot(
+    voteRef(sessionId, round, uid),
+    (snapshot) => {
+      onUpdate(snapshot.exists() ? { votedFor: snapshot.data().votedFor } : null);
+    },
+    onError
+  );
+}
+
+/**
+ * Submits a question to the questions subcollection.
+ */
+export async function submitFirestoreQuestion(sessionId, participantUid, question) {
+  if (!isFirebaseConfigured()) return false;
+
+  await setDoc(questionRef(sessionId, question.id), {
+    text: question.text,
+    participantUid,
+    avatarId: question.avatarId,
+    votes: 0,
+    answered: false,
+    createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+
   return true;
 }
 
 /**
- * Marks a question as answered
+ * Votes on a question. Uses a transaction to atomically check the marker and increment votes.
  */
-export async function markFirestoreQuestionAnswered(sessionId, questionId, currentQuestions) {
+export async function voteFirestoreQuestion(sessionId, questionId, round, participantUid) {
   if (!isFirebaseConfigured()) return false;
 
-  const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
-  const updatedQuestions = currentQuestions.map((q) =>
-    q.id === questionId ? { ...q, answered: true } : q
-  );
+  const marker = voteRef(sessionId, round, participantUid);
+  const qRef = questionRef(sessionId, questionId);
 
-  await updateDoc(sessionRef, {
-    questions: updatedQuestions,
+  try {
+    await runTransaction(db, async (tx) => {
+      const markerSnap = await tx.get(marker);
+      if (markerSnap.exists()) throw new Error('ALREADY_VOTED');
+
+      tx.set(marker, { votedFor: questionId, createdAt: serverTimestamp() });
+      tx.update(qRef, { votes: increment(1) });
+    });
+    return true;
+  } catch (err) {
+    if (err.message === 'ALREADY_VOTED') return false;
+    throw err;
+  }
+}
+
+/**
+ * Marks a question as answered and advances phase to followup.
+ */
+export async function markFirestoreQuestionAnswered(sessionId, questionId) {
+  if (!isFirebaseConfigured()) return false;
+
+  await updateDoc(questionRef(sessionId, questionId), {
+    answered: true,
+  });
+
+  await updateDoc(sessionRef(sessionId), {
     phase: 'followup',
     updatedAt: serverTimestamp(),
   });
+
+  return true;
+}
+
+/**
+ * Deletes a question. Firestore rules restrict this to the host.
+ */
+export async function deleteFirestoreQuestion(sessionId, questionId) {
+  if (!isFirebaseConfigured()) return false;
+
+  await deleteDoc(questionRef(sessionId, questionId));
+  return true;
+}
+
+/**
+ * Updates session phase. Only callable by hostUid.
+ */
+export async function updateFirestoreSessionPhase(sessionId, uid, patch) {
+  if (!isFirebaseConfigured()) return false;
+
+  const snap = await getDoc(sessionRef(sessionId));
+  if (!snap.exists() || snap.data().hostUid !== uid) return false;
+
+  await updateDoc(sessionRef(sessionId), {
+    ...patch,
+    updatedAt: serverTimestamp(),
+  });
+
+  return true;
+}
+
+/**
+ * Resets votes on all unanswered questions for a new round.
+ */
+export async function resetQuestionVotes(sessionId) {
+  if (!isFirebaseConfigured()) return false;
+
+  const snap = await getDoc(sessionRef(sessionId));
+  if (!snap.exists()) return false;
+
+  const questionsRef = collection(db, SESSIONS, sessionId, 'questions');
+  const unanswered = query(questionsRef, where('answered', '==', false));
+  const snapshot = await getDocs(unanswered);
+
+  const batch = writeBatch(db);
+  snapshot.docs.forEach((doc) => {
+    batch.update(doc.ref, { votes: 0 });
+  });
+  await batch.commit();
+
   return true;
 }

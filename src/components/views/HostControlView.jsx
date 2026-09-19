@@ -8,6 +8,7 @@ import { MicIcon } from '../../constants/icons';
 export default function HostControlView() {
   const {
     session,
+    questions,
     setView,
     submittedCount,
     answeredCount,
@@ -25,7 +26,7 @@ export default function HostControlView() {
     restartDemo,
   } = useSession();
 
-  const { phase, questions, presence } = session;
+  const { phase, presence } = session;
 
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-[280px_1fr] bg-cream">
