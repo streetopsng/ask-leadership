@@ -25,11 +25,11 @@ Production-ready Ask Leadership: infrastructure hardening (error boundaries, aut
 - [11 - Rewrite README](issues/11-readme-rewrite.md): rewritten for the real product (setup, demo mode, scripts, tests, deploy). References `npm run test:integration` that lands with ticket 12.
 - [06 - Real-time question feed](issues/06-realtime-question-feed.md): Firestore is the source of truth — live subscriptions to the session doc, questions subcollection, and my vote marker; `mine`/`justVotedId` derived not stored. Shipped `beginHostSetup` (fixes pre-existing `HostSetupView` null-session crash) and `mode` persistence through config.
 - [07 - Host answering flow](issues/07-host-answering-flow.md): `beginVotingRound()` now backs both `startVoting` and `nextQuestion`, resetting votes on the fresh round (`resetQuestionVotes` in Firebase, `!q.answered` map in demo — aligned, no drift) so stale counts never carry over; end-of-loop (no unanswered questions) ends the session. Winner (`currentQuestionId` + `winner`), `answering`, `markAnswered` (`followup`) stream through the session doc and are test-covered.
+- [08 - Question moderation](issues/08-question-moderation.md): host removal deletes in Firestore (rules already allowed it) and the stream removes it everywhere; `HostControlView` now gates deletion behind an inline `Remove?`/Remove/Keep confirm (`confirmingRemoveId`). Not undoable — removed questions are gone for everyone and never exported.
 
 ## Not yet specified
 
 - **Dashboard content**: which per-session stats and how the per-device identity caveat is surfaced — rounds when the admin dashboard ticket is reached.
-- **Moderation UX**: confirm dialog shape and whether removal is undoable — inside the moderation ticket, revisit at the frontier.
 - **Rate-limit window**: concrete submission/creation thresholds — inside the rate-limiting ticket.
 
 ## Out of scope

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSession } from '../../context/SessionContext';
 import Button from '../common/Button';
 import AvatarBlob from '../common/AvatarBlob';
@@ -5,6 +6,7 @@ import { Pill } from '../common/Pill';
 import { MicIcon } from '../../constants/icons';
 
 export default function HostControlView() {
+  const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(null);
   const {
     session,
     questions,
@@ -195,16 +197,38 @@ export default function HostControlView() {
                     </span>
                   )}
 
-                  {/* Remove Question button */}
+                  {/* Remove Question button with inline confirm */}
                   {!q.answered && (phase === 'submitting' || phase === 'closed') && (
-                    <button
-                      type="button"
-                      onClick={() => removeQuestion(q.id)}
-                      title="Remove question"
-                      className="w-7 h-7 rounded-lg border-2 border-ink bg-white hover:bg-purple-tint text-ink flex items-center justify-center font-bold text-xs shadow-hard-sm cursor-pointer shrink-0"
-                    >
-                      ✕
-                    </button>
+                    confirmingRemoveId === q.id ? (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-mono text-[10px] uppercase tracking-wider font-bold text-muted-ink">
+                          Remove?
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="dark"
+                          onClick={() => {
+                            setConfirmingRemoveId(null);
+                            void removeQuestion(q.id);
+                          }}
+                        >
+                          Remove
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setConfirmingRemoveId(null)}>
+                          Keep
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingRemoveId(q.id)}
+                        aria-label="Remove question"
+                        title="Remove question"
+                        className="w-7 h-7 rounded-lg border-2 border-ink bg-white hover:bg-purple-tint text-ink flex items-center justify-center font-bold text-xs shadow-hard-sm cursor-pointer shrink-0"
+                      >
+                        ✕
+                      </button>
+                    )
                   )}
                 </div>
               ))
