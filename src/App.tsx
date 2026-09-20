@@ -10,9 +10,10 @@ import RoomView from './components/views/RoomView';
 import ClosingView from './components/views/ClosingView';
 import ToastStack from './components/common/ToastStack';
 import RoleSwitcher from './components/common/RoleSwitcher';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 function MainApp() {
-  const { view } = useSession();
+  const { view, restartDemo } = useSession();
 
   const renderView = () => {
     switch (view) {
@@ -41,9 +42,11 @@ function MainApp() {
 
   return (
     <div className="min-h-screen bg-cream text-ink font-body selection:bg-brand-purple selection:text-ink">
-      {renderView()}
-      <ToastStack />
-      <RoleSwitcher />
+      <ErrorBoundary onReset={restartDemo}>
+        {renderView()}
+        <ToastStack />
+        <RoleSwitcher />
+      </ErrorBoundary>
     </div>
   );
 }

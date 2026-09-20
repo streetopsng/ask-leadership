@@ -165,6 +165,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, [session?.id, uid_, isSyncEnabled]);
 
+  const showToast = useCallback((msg: string, action?: Toast['action']) => {
+    const id = uid();
+    setToasts((prev) => [...prev, { id, text: msg, action }]);
+    const timeout = setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+      toastTimeoutsRef.current.delete(id);
+    }, 2500);
+    toastTimeoutsRef.current.set(id, timeout);
+  }, []);
+
   const syncToFirestore = useCallback(
     async <T,>(op: () => Promise<T>): Promise<T | undefined | null> => {
       if (!isSyncEnabled) return undefined;
@@ -172,21 +182,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return await op();
       } catch (err) {
         console.error('Firestore sync error:', err);
+        showToast('Could not save your change.', {
+          label: 'Retry',
+          onClick: () => void syncToFirestore(op),
+        });
         return null;
       }
     },
-    [isSyncEnabled]
+    [isSyncEnabled, showToast]
   );
-
-  const showToast = useCallback((msg: string) => {
-    const id = uid();
-    setToasts((prev) => [...prev, { id, text: msg }]);
-    const timeout = setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-      toastTimeoutsRef.current.delete(id);
-    }, 2500);
-    toastTimeoutsRef.current.set(id, timeout);
-  }, []);
 
   const questionsWithMine = useMemo(() => withMine(questions, uid_), [questions, uid_]);
 

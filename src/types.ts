@@ -79,6 +79,10 @@ export interface Me {
 export interface Toast {
   id: string;
   text: string;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 // ── View names ───────────────────────────────────────────────────────
@@ -107,7 +111,7 @@ export interface SessionContextValue {
   me: Me;
   toasts: Toast[];
   presenceCount: number;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, action?: Toast['action']) => void;
   activePool: Question[];
   submittedCount: number;
   answeredCount: number;

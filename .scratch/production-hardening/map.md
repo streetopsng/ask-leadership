@@ -18,6 +18,7 @@ Production-ready Ask Leadership: infrastructure hardening (error boundaries, aut
 
 ## Decisions so far
 
+- [02 - Error boundaries](issues/02-error-boundary.md): application render failures now use a recoverable StageFrame fallback with Retry and safe reset-to-landing; Firebase write failures remain non-fatal and expose a retryable toast.
 - [01 - Research: Firebase ops facts](issues/01-research-firebase-ops.md): TTL is `gcloud firestore fields ttls update <field> --collection-group=<cg> --enable-ttl` (no `ttls` command), ~24h deletion lag, no subcollection cascade (need per-collection policies), emulator does NOT simulate TTL. Offline: `initializeFirestore(app, { localCache: persistentLocalCache(...) })`, multi-tab opt-in, persistence off by default, per-UID cache. Emulator: web SDK ignores env vars — call `connectFirestoreEmulator`/`connectAuthEmulator`/`connectDatabaseEmulator` explicitly, use `--project demo-ask-leadership` and `firebase emulators:exec --only firestore,auth "npm test"`.
 - [10 - Remove dead code](issues/10-remove-dead-code.md): deleted `App.css`, `new.html`, and the `SCATTER_WORDS` export. Lint 0 errors.
 - [11 - Rewrite README](issues/11-readme-rewrite.md): rewritten for the real product (setup, demo mode, scripts, tests, deploy). References `npm run test:integration` that lands with ticket 12.
