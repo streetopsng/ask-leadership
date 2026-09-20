@@ -13,7 +13,21 @@ import RoleSwitcher from './components/common/RoleSwitcher';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
 function MainApp() {
-  const { view, restartDemo } = useSession();
+  const { restartDemo, retrySync } = useSession();
+
+  return (
+    <div className="min-h-screen bg-cream text-ink font-body selection:bg-brand-purple selection:text-ink">
+      <ErrorBoundary onReset={restartDemo} onRetry={retrySync}>
+        <SessionViews />
+      </ErrorBoundary>
+    </div>
+  );
+}
+
+function SessionViews() {
+  const { view, syncError } = useSession();
+
+  if (syncError) throw syncError;
 
   const renderView = () => {
     switch (view) {
@@ -41,13 +55,11 @@ function MainApp() {
   };
 
   return (
-    <div className="min-h-screen bg-cream text-ink font-body selection:bg-brand-purple selection:text-ink">
-      <ErrorBoundary onReset={restartDemo}>
-        {renderView()}
-        <ToastStack />
-        <RoleSwitcher />
-      </ErrorBoundary>
-    </div>
+    <>
+      {renderView()}
+      <ToastStack />
+      <RoleSwitcher />
+    </>
   );
 }
 

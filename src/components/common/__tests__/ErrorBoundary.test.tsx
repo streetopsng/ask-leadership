@@ -8,12 +8,12 @@ function ThrowingChild({ shouldThrow }: { shouldThrow: boolean }) {
   return <p>Room restored</p>;
 }
 
-function RecoverableRoom({ onReset }: { onReset: () => void }) {
+function RecoverableRoom({ onReset, onRetry }: { onReset: () => void; onRetry: () => void }) {
   const [shouldThrow, setShouldThrow] = useState(true);
   return (
     <>
       <button type="button" onClick={() => setShouldThrow(false)}>Restore room</button>
-      <ErrorBoundary onReset={onReset}>
+      <ErrorBoundary onReset={onReset} onRetry={onRetry}>
         <ThrowingChild shouldThrow={shouldThrow} />
       </ErrorBoundary>
     </>
@@ -43,19 +43,21 @@ describe('ErrorBoundary', () => {
 
   it('retries rendering after the failed child becomes healthy', () => {
     const onReset = vi.fn();
-    render(<RecoverableRoom onReset={onReset} />);
+    const onRetry = vi.fn();
+    render(<RecoverableRoom onReset={onReset} onRetry={onRetry} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Restore room' }));
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
     expect(screen.getByText('Room restored')).toBeTruthy();
     expect(onReset).not.toHaveBeenCalled();
+    expect(onRetry).toHaveBeenCalledOnce();
   });
 
   it('delegates a safe reset to the application', () => {
     const onReset = vi.fn();
     render(
-      <ErrorBoundary onReset={onReset}>
+      <ErrorBoundary onReset={onReset} onRetry={vi.fn()}>
         <ThrowingChild shouldThrow />
       </ErrorBoundary>
     );

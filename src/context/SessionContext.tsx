@@ -74,6 +74,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [closingStep, setClosingStep] = useState(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [presenceCount, setPresenceCount] = useState(0);
+  const [syncError, setSyncError] = useState<Error | null>(null);
+  const [syncRevision, setSyncRevision] = useState(0);
   const [me, setMe] = useState<Me>({ avatar: null, joined: false, myQuestionId: null, votedThisRound: false, justVotedId: null });
   const unsubSessionRef = useRef<(() => void) | null>(null);
   const unsubQuestionsRef = useRef<(() => void) | null>(null);
@@ -82,6 +84,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const toastTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const isSyncEnabled = isFirebaseConfigured() && !isDemoMode();
+
+  const retrySync = useCallback(() => {
+    setSyncError(null);
+    setSyncRevision((revision) => revision + 1);
+  }, []);
+
+  const handleListenerError = useCallback((err: Error) => {
+    console.error('Firestore sync error:', err);
+    setSyncError(err);
+  }, []);
 
   const patchSession = useCallback((patch: Partial<Session>) => {
     setSession((prev) => (prev ? { ...prev, ...patch } : prev));
@@ -106,36 +118,35 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session?.id || !isSyncEnabled) return;
 
-    unsubSessionRef.current?.();
-    unsubSessionRef.current = subscribeToFirestoreSession(
+    const unsubscribe = subscribeToFirestoreSession(
       session.id,
       (remote) => patchSession(remote),
-      (err) => console.error('Session sync error:', err)
+      handleListenerError
     );
+    unsubSessionRef.current = unsubscribe;
 
-    return () => unsubSessionRef.current?.();
-  }, [session?.id, isSyncEnabled, patchSession]);
+    return unsubscribe;
+  }, [session?.id, isSyncEnabled, patchSession, handleListenerError, syncRevision]);
 
   // Subscribe to the live questions feed
   useEffect(() => {
     if (!session?.id || !isSyncEnabled) return;
 
-    unsubQuestionsRef.current?.();
-    unsubQuestionsRef.current = subscribeToFirestoreQuestions(
+    const unsubscribe = subscribeToFirestoreQuestions(
       session.id,
       (raw) => setQuestions((prev) => applyQuestionSnapshot(prev, raw)),
-      (err) => console.error('Questions sync error:', err)
+      handleListenerError
     );
+    unsubQuestionsRef.current = unsubscribe;
 
-    return () => unsubQuestionsRef.current?.();
-  }, [session?.id, isSyncEnabled]);
+    return unsubscribe;
+  }, [session?.id, isSyncEnabled, handleListenerError, syncRevision]);
 
   // Subscribe to my own vote marker for the current round
   useEffect(() => {
     if (!session?.id || !session?.round || !uid_ || !isSyncEnabled) return;
 
-    unsubMyVoteRef.current?.();
-    unsubMyVoteRef.current = subscribeToMyVote(
+    const unsubscribe = subscribeToMyVote(
       session.id,
       session.round,
       uid_,
@@ -145,25 +156,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           votedThisRound: !!marker,
           justVotedId: marker ? marker.votedFor : null,
         })),
-      (err) => console.error('Vote sync error:', err)
+      handleListenerError
     );
+    unsubMyVoteRef.current = unsubscribe;
 
-    return () => unsubMyVoteRef.current?.();
-  }, [session?.id, session?.round, uid_, isSyncEnabled]);
+    return unsubscribe;
+  }, [session?.id, session?.round, uid_, isSyncEnabled, handleListenerError, syncRevision]);
 
   // Subscribe to presence
   useEffect(() => {
     if (!session?.id || !uid_ || !isSyncEnabled) return;
 
     goOnline(session.id, uid_);
-    unsubPresenceRef.current = subscribeToPresence(session.id, setPresenceCount);
+    const unsubscribe = subscribeToPresence(session.id, setPresenceCount);
+    unsubPresenceRef.current = unsubscribe;
 
     const sessionId = session.id;
     return () => {
       goOffline(sessionId, uid_);
-      unsubPresenceRef.current?.();
+      unsubscribe();
     };
-  }, [session?.id, uid_, isSyncEnabled]);
+  }, [session?.id, uid_, isSyncEnabled, syncRevision]);
 
   const showToast = useCallback((msg: string, action?: Toast['action']) => {
     const id = uid();
@@ -415,6 +428,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   };
 
   const restartDemo = () => {
+    setSyncError(null);
     setSession(null);
     setQuestions([]);
     setMe({ avatar: null, joined: false, myQuestionId: null, votedThisRound: false, justVotedId: null });
@@ -440,6 +454,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const value: SessionContextValue = {
     uid: uid_,
+    syncError,
+    retrySync,
     view,
     setView,
     demoRole,

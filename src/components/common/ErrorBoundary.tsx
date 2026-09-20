@@ -5,6 +5,7 @@ import StageFrame from './StageFrame';
 interface ErrorBoundaryProps {
   children: ReactNode;
   onReset: () => void;
+  onRetry?: () => void;
 }
 
 interface ErrorBoundaryState {
@@ -23,6 +24,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   }
 
   private retry = (): void => {
+    this.props.onRetry?.();
     this.setState({ hasError: false });
   };
 

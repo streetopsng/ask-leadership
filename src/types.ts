@@ -100,6 +100,8 @@ export type ViewName =
 // ── SessionContext value ──────────────────────────────────────────────
 export interface SessionContextValue {
   uid: string | null;
+  syncError: Error | null;
+  retrySync: () => void;
   view: ViewName;
   setView: (v: ViewName) => void;
   demoRole: 'host' | 'employee' | null;
