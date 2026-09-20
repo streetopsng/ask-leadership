@@ -8,6 +8,7 @@ import EmployeeWelcomeView from './components/views/EmployeeWelcomeView';
 import AvatarSelectView from './components/views/AvatarSelectView';
 import RoomView from './components/views/RoomView';
 import ClosingView from './components/views/ClosingView';
+import HostDashboardView from './components/views/HostDashboardView';
 import ToastStack from './components/common/ToastStack';
 import RoleSwitcher from './components/common/RoleSwitcher';
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -63,6 +64,8 @@ function SessionViews() {
         return <HostReadyView />;
       case 'hostControl':
         return <HostControlView />;
+      case 'dashboard':
+        return <HostDashboardView />;
       case 'employeeInvite':
         return <EmployeeInviteView />;
       case 'employeeWelcome':

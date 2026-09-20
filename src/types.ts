@@ -92,6 +92,7 @@ export type ViewName =
   | 'hostSetup'
   | 'hostReady'
   | 'hostControl'
+  | 'dashboard'
   | 'employeeInvite'
   | 'employeeWelcome'
   | 'avatarSelect'

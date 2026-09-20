@@ -1,40 +1,17 @@
 import type { Question } from '../types';
+import { formatTimestamp } from './timestamps';
 
 /**
  * Host-only session export helpers. Pure builders are unit-testable
  * without React or Firebase; downloadCsv is the only DOM-touching piece.
  */
 
-function pad(value: number): string {
-  return String(value).padStart(2, '0');
-}
-
-function toDate(value: unknown): Date | null {
-  let candidate: Date | null = null;
-
-  if (value instanceof Date) {
-    candidate = value;
-  } else if (typeof value === 'number' || typeof value === 'string') {
-    candidate = new Date(value);
-  } else if (value != null) {
-    // Firestore Timestamp-like objects expose toDate().
-    const toDateFn = (value as { toDate?: unknown }).toDate;
-    if (typeof toDateFn === 'function') {
-      candidate = (toDateFn as () => Date)();
-    }
-  }
-
-  return candidate && !Number.isNaN(candidate.getTime()) ? candidate : null;
-}
-
 /**
  * Local submission time as YYYY-MM-DD HH:mm.
  * Prefers the Firestore createdAt, falls back to the demo-mode `ts` epoch.
  */
 export function formatSubmissionTime(question: Question): string {
-  const d = toDate(question.createdAt) ?? toDate(question.ts);
-  if (!d) return '';
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return formatTimestamp(question.createdAt ?? question.ts);
 }
 
 function csvEscape(value: string): string {

@@ -125,6 +125,10 @@ export default function HostControlView() {
               Start a new session
             </Button>
           )}
+
+          <Button variant="ghost" fullWidth onClick={() => setView('dashboard')}>
+            Past sessions
+          </Button>
         </div>
 
         <div className="mt-auto pt-4 flex items-center justify-center gap-2 bg-sage-tint text-sage-deep border-2 border-ink py-2 px-3 rounded-full font-mono text-[11px] uppercase tracking-wider font-bold">

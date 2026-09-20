@@ -14,11 +14,13 @@ import {
   getDocs,
   where,
   writeBatch,
+  getCountFromServer,
   type DocumentData,
   type DocumentSnapshot,
   type QuerySnapshot,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './config';
+import { timestampMillis } from '../lib/timestamps';
 import type { Session, Question, VoteMarker, SessionConfig } from '../types';
 
 const SESSIONS = 'sessions';
@@ -265,4 +267,76 @@ export async function resetQuestionVotes(sessionId: string): Promise<boolean> {
   await batch.commit();
 
   return true;
+}
+
+export interface HostSessionSummary {
+  session: Session;
+  submitted: number;
+  answered: number;
+  unanswered: number;
+}
+
+/**
+ * Lists sessions hosted by the given uid, newest first.
+ * Filters server-side on hostUid; sorts client-side so no composite
+ * Firestore index is required.
+ */
+export async function listHostSessions(hostUid: string): Promise<Session[]> {
+  if (!isFirebaseConfigured()) return [];
+
+  const snapshot: QuerySnapshot<DocumentData> = await getDocs(
+    query(collection(db!, SESSIONS), where('hostUid', '==', hostUid))
+  );
+
+  return snapshot.docs
+    .map((d) => ({ id: d.id, ...d.data() } as Session))
+    .sort((a, b) => timestampMillis(b.createdAt) - timestampMillis(a.createdAt));
+}
+
+/**
+ * Counts submitted and answered questions via aggregation queries —
+ * totals only, no question text is transferred.
+ */
+export async function countSessionQuestions(
+  sessionId: string
+): Promise<{ submitted: number; answered: number }> {
+  if (!isFirebaseConfigured()) return { submitted: 0, answered: 0 };
+
+  const questionsRef = collection(db!, SESSIONS, sessionId, 'questions');
+  const [all, answered] = await Promise.all([
+    getCountFromServer(questionsRef),
+    getCountFromServer(query(questionsRef, where('answered', '==', true))),
+  ]);
+
+  return { submitted: all.data().count, answered: answered.data().count };
+}
+
+/**
+ * One summary per hosted session: the session plus submitted/answered/
+ * unanswered totals. Totals only — never question text.
+ */
+export async function listHostSessionSummaries(hostUid: string): Promise<HostSessionSummary[]> {
+  if (!isFirebaseConfigured()) return [];
+
+  const sessions = await listHostSessions(hostUid);
+  return Promise.all(
+    sessions.map(async (session) => {
+      const { submitted, answered } = await countSessionQuestions(session.id!);
+      return { session, submitted, answered, unanswered: Math.max(0, submitted - answered) };
+    })
+  );
+}
+
+/**
+ * One-time read of a session's questions, newest first, for the
+ * read-only summary/export view.
+ */
+export async function listFirestoreQuestions(sessionId: string): Promise<Question[]> {
+  if (!isFirebaseConfigured()) return [];
+
+  const snapshot: QuerySnapshot<DocumentData> = await getDocs(
+    query(collection(db!, SESSIONS, sessionId, 'questions'), orderBy('createdAt', 'desc'))
+  );
+
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Question));
 }
