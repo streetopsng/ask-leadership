@@ -52,6 +52,7 @@ export interface Question {
   avatarId: string;
   votes: number;
   answered: boolean;
+  answeredRound?: number | null;
   participantUid: string | null;
   mine?: boolean;
   ts?: number;

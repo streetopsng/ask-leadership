@@ -189,16 +189,18 @@ export async function voteFirestoreQuestion(
 }
 
 /**
- * Marks a question as answered and advances phase to followup.
+ * Marks a question as answered (recording the round) and advances phase to followup.
  */
 export async function markFirestoreQuestionAnswered(
   sessionId: string,
-  questionId: string
+  questionId: string,
+  round: number
 ): Promise<boolean> {
   if (!isFirebaseConfigured()) return false;
 
   await updateDoc(questionRef(sessionId, questionId), {
     answered: true,
+    answeredRound: round,
   });
 
   await updateDoc(sessionRef(sessionId), {

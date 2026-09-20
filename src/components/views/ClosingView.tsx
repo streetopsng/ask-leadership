@@ -2,6 +2,7 @@ import { useSession } from '../../context/SessionContext';
 import Button from '../common/Button';
 import Waveform from '../common/Waveform';
 import StageFrame from '../common/StageFrame';
+import { buildCsv, buildFollowUpList, downloadCsv } from '../../lib/sessionExport';
 
 export default function ClosingView() {
   const {
@@ -11,7 +12,30 @@ export default function ClosingView() {
     answeredCount,
     remainingCount,
     restartDemo,
+    questions,
+    session,
+    uid,
+    showToast,
   } = useSession();
+
+  const isHost = session?.hostUid != null && uid != null && session.hostUid === uid;
+
+  const handleDownloadCsv = () => {
+    if (!session?.id) return;
+    downloadCsv(`ask-leadership-${session.id}.csv`, buildCsv(questions));
+  };
+
+  const handleCopyFollowUpList = async () => {
+    if (!session?.id) return;
+    const list = buildFollowUpList(session.id, questions);
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(list);
+      showToast('Follow-up list copied.');
+    } catch {
+      showToast('Could not copy the follow-up list.');
+    }
+  };
 
   if (closingStep === 0 && remainingCount > 0) {
     return (
@@ -96,6 +120,22 @@ export default function ClosingView() {
               </div>
             </div>
           </div>
+
+          {isHost && (
+            <div className="bg-white border-2 border-ink rounded-xl p-4 shadow-hard-sm my-6 mx-auto max-w-md">
+              <div className="font-mono text-xs uppercase tracking-wider font-bold text-purple-deep mb-3">
+                Session export
+              </div>
+              <div className="flex justify-center gap-3 flex-wrap">
+                <Button size="sm" variant="ghost" onClick={handleDownloadCsv}>
+                  Download session CSV
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => void handleCopyFollowUpList()}>
+                  Copy follow-up list
+                </Button>
+              </div>
+            </div>
+          )}
 
           <p className="font-body font-semibold text-muted-ink text-base mb-6">
             Thanks for helping shape the conversation.

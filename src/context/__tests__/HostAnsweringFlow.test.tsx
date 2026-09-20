@@ -134,7 +134,7 @@ describe('Host answering flow', () => {
     fireEvent.click(screen.getByRole('button', { name: "That's been answered" }));
     await waitFor(() => expect(screen.getByTestId('phase').textContent).toBe('followup'));
     expect(screen.getByTestId('answered').textContent).toBe('q1');
-    expect(markQuestionAnswered).toHaveBeenCalledWith('AL-TEST', 'q1');
+    expect(markQuestionAnswered).toHaveBeenCalledWith('AL-TEST', 'q1', 1);
   });
 
   it('rolls to a fresh voting round and resets votes when unanswered questions remain', async () => {

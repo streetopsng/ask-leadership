@@ -133,14 +133,14 @@ describe('sessionService', () => {
   })
 
   describe('markFirestoreQuestionAnswered', () => {
-    it('marks question answered and sets phase to followup', async () => {
-      await mod.markFirestoreQuestionAnswered('AL-TEST', 'q1')
+    it('marks question answered with the round and sets phase to followup', async () => {
+      await mod.markFirestoreQuestionAnswered('AL-TEST', 'q1', 2)
 
       expect(mockUpdateDoc).toHaveBeenCalledTimes(2)
       // First call: question doc
       const [qRef, qData] = mockUpdateDoc.mock.calls[0]
       expect(qRef.id).toBe('q1')
-      expect(qData).toMatchObject({ answered: true })
+      expect(qData).toMatchObject({ answered: true, answeredRound: 2 })
       // Second call: session doc
       const [, sessionData] = mockUpdateDoc.mock.calls[1]
       expect(sessionData).toMatchObject({ phase: 'followup' })

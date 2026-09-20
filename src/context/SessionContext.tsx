@@ -447,10 +447,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   };
 
   const markAnswered = async () => {
-    setQuestions((prev) => prev.map((q) => (q.id === session?.currentQuestionId ? { ...q, answered: true } : q)));
+    setQuestions((prev) => prev.map((q) => (q.id === session?.currentQuestionId ? { ...q, answered: true, answeredRound: session.round } : q)));
     patchSession({ phase: 'followup' });
 
-    await syncToFirestore(() => markFirestoreQuestionAnswered(session!.id!, session!.currentQuestionId!));
+    await syncToFirestore(() => markFirestoreQuestionAnswered(session!.id!, session!.currentQuestionId!, session!.round));
   };
 
   const nextQuestion = async () => {
