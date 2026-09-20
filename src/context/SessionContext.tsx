@@ -392,25 +392,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const startVoting = async () => {
-    setSession((prev) =>
-      prev
-        ? {
-            ...prev,
-            phase: 'voting',
-            round: prev.round + 1,
-          }
-        : prev
-    );
+  const beginVotingRound = async () => {
+    const nextRound = (session?.round ?? 0) + 1;
+    const patch = { currentQuestionId: null, round: nextRound, phase: 'voting' as const };
+    patchSession(patch);
     setMe((prev) => ({ ...prev, votedThisRound: false, justVotedId: null }));
     if (!isSyncEnabled) {
       setQuestions((prev) => prev.map((q) => (!q.answered ? { ...q, votes: 0 } : q)));
     }
 
     await syncToFirestore(async () => {
-      await updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'voting', round: session!.round + 1 });
+      await updateFirestoreSessionPhase(session!.id!, uid_!, patch);
       await resetQuestionVotes(session!.id!);
     });
+  };
+
+  const startVoting = async () => {
+    await beginVotingRound();
   };
 
   const voteQuestion = async (qid: string) => {
@@ -458,11 +456,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const nextQuestion = async () => {
     const unAnswered = questionsWithMine.filter((q) => !q.answered && q.id !== session?.currentQuestionId);
     if (unAnswered.length > 0) {
-      const patch = { currentQuestionId: null, round: session!.round + 1, phase: 'voting' as const };
-      patchSession(patch);
-      setMe((prev) => ({ ...prev, votedThisRound: false, justVotedId: null }));
-
-      await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, patch));
+      await beginVotingRound();
     } else {
       endSession();
     }

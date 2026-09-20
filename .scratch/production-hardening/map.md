@@ -24,6 +24,7 @@ Production-ready Ask Leadership: infrastructure hardening (error boundaries, aut
 - [10 - Remove dead code](issues/10-remove-dead-code.md): deleted `App.css`, `new.html`, and the `SCATTER_WORDS` export. Lint 0 errors.
 - [11 - Rewrite README](issues/11-readme-rewrite.md): rewritten for the real product (setup, demo mode, scripts, tests, deploy). References `npm run test:integration` that lands with ticket 12.
 - [06 - Real-time question feed](issues/06-realtime-question-feed.md): Firestore is the source of truth — live subscriptions to the session doc, questions subcollection, and my vote marker; `mine`/`justVotedId` derived not stored. Shipped `beginHostSetup` (fixes pre-existing `HostSetupView` null-session crash) and `mode` persistence through config.
+- [07 - Host answering flow](issues/07-host-answering-flow.md): `beginVotingRound()` now backs both `startVoting` and `nextQuestion`, resetting votes on the fresh round (`resetQuestionVotes` in Firebase, `!q.answered` map in demo — aligned, no drift) so stale counts never carry over; end-of-loop (no unanswered questions) ends the session. Winner (`currentQuestionId` + `winner`), `answering`, `markAnswered` (`followup`) stream through the session doc and are test-covered.
 
 ## Not yet specified
 
