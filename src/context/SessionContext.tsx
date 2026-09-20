@@ -89,6 +89,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const unsubMyVoteRef = useRef<(() => void) | null>(null);
   const unsubPresenceRef = useRef<(() => void) | null>(null);
   const toastTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const syncToFirestoreRef = useRef<(<T,>(op: () => Promise<T>) => Promise<T | undefined | null>) | null>(null);
 
   const isSyncEnabled = isFirebaseConfigured() && !isDemoMode();
 
@@ -115,6 +116,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // Auth on mount
   useEffect(() => {
     if (!isFirebaseConfigured() || isDemoMode()) {
+      // eslint-disable-next-line react/set-state-in-effect -- intentional demo mode init
       setUid(`demo-${uid()}`);
       setAuthStatus('signedIn');
       return;
@@ -225,13 +227,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         console.error('Firestore sync error:', err);
         showToast('Could not save your change.', {
           label: 'Retry',
-          onClick: () => void syncToFirestore(op),
+          onClick: () => void syncToFirestoreRef.current?.(op),
         });
         return null;
       }
     },
     [isSyncEnabled, showToast]
   );
+
+  useEffect(() => {
+    syncToFirestoreRef.current = syncToFirestore;
+  });
 
   const questionsWithMine = useMemo(() => withMine(questions, uid_), [questions, uid_]);
 
@@ -327,6 +333,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // Join session from URL on mount
   useEffect(() => {
     if (urlJoinCode && uid_ && authStatus === 'signedIn') {
+      // eslint-disable-next-line react/set-state-in-effect -- intentional URL join on mount
       void joinSession(urlJoinCode);
     }
   }, [urlJoinCode, uid_, authStatus, joinSession]);
@@ -545,13 +552,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // Cleanup toast timeouts and subscriptions on unmount
   useEffect(() => {
+    const timeouts = toastTimeoutsRef.current;
+    const unsubSession = unsubSessionRef.current;
+    const unsubQuestions = unsubQuestionsRef.current;
+    const unsubMyVote = unsubMyVoteRef.current;
+    const unsubPresence = unsubPresenceRef.current;
     return () => {
-      toastTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
-      toastTimeoutsRef.current.clear();
-      unsubSessionRef.current?.();
-      unsubQuestionsRef.current?.();
-      unsubMyVoteRef.current?.();
-      unsubPresenceRef.current?.();
+      timeouts.forEach((timeout) => clearTimeout(timeout));
+      timeouts.clear();
+      unsubSession?.();
+      unsubQuestions?.();
+      unsubMyVote?.();
+      unsubPresence?.();
     };
   }, []);
 
