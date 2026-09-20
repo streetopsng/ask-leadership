@@ -74,6 +74,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [closingStep, setClosingStep] = useState(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [presenceCount, setPresenceCount] = useState(0);
+  const [authStatus, setAuthStatus] = useState<'idle' | 'signingIn' | 'signedIn' | 'error'>(() =>
+    isFirebaseConfigured() && !isDemoMode() ? 'signingIn' : 'signedIn'
+  );
+  const [authError, setAuthError] = useState<Error | null>(null);
+  const [authAttempt, setAuthAttempt] = useState(0);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
+  const [joinError, setJoinError] = useState<Error | null>(null);
   const [syncError, setSyncError] = useState<Error | null>(null);
   const [syncRevision, setSyncRevision] = useState(0);
   const [me, setMe] = useState<Me>({ avatar: null, joined: false, myQuestionId: null, votedThisRound: false, justVotedId: null });
@@ -95,6 +102,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSyncError(err);
   }, []);
 
+  const retryAuthentication = useCallback(() => {
+    setAuthError(null);
+    setAuthStatus('signingIn');
+    setAuthAttempt((attempt) => attempt + 1);
+  }, []);
+
   const patchSession = useCallback((patch: Partial<Session>) => {
     setSession((prev) => (prev ? { ...prev, ...patch } : prev));
   }, []);
@@ -103,16 +116,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isFirebaseConfigured() || isDemoMode()) {
       setUid(`demo-${uid()}`);
+      setAuthStatus('signedIn');
       return;
     }
     let cancelled = false;
+    setAuthStatus('signingIn');
+    setAuthError(null);
     signInAnonymouslyToFirebase().then((id) => {
-      if (id && !cancelled) setUid(id);
+      if (cancelled) return;
+      if (!id) {
+        setAuthError(new Error('Could not initialize anonymous identity.'));
+        setAuthStatus('error');
+        return;
+      }
+      setUid(id);
+      if (urlJoinCode) setSyncStatus('syncing');
+      setAuthStatus('signedIn');
+    }).catch((err: unknown) => {
+      if (cancelled) return;
+      setAuthError(err instanceof Error ? err : new Error('Could not initialize anonymous identity.'));
+      setAuthStatus('error');
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authAttempt, urlJoinCode]);
 
   // Subscribe to the session doc
   useEffect(() => {
@@ -258,14 +286,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const joinSession = useCallback(
     async (code: string) => {
       if (isSyncEnabled) {
-        const remote = await getFirestoreSession(code);
-        if (!remote) {
-          showToast('Session not found');
-          return;
+        setSyncStatus('syncing');
+        setJoinError(null);
+        try {
+          const remote = await getFirestoreSession(code);
+          if (!remote) {
+            setJoinError(new Error('Session not found.'));
+            setSyncStatus('error');
+            return;
+          }
+          setSession(remote);
+          setQuestions([]);
+          setView('avatarSelect');
+          setSyncStatus('synced');
+        } catch (err) {
+          setJoinError(err instanceof Error ? err : new Error('Could not join the room.'));
+          setSyncStatus('error');
         }
-        setSession(remote);
-        setQuestions([]);
-        setView('avatarSelect');
       } else {
         setSession({
           id: code,
@@ -277,17 +314,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         });
         setQuestions([]);
         setView('avatarSelect');
+        setSyncStatus('synced');
       }
     },
-    [isSyncEnabled, showToast]
+    [isSyncEnabled]
   );
+
+  const retryJoin = useCallback(() => {
+    if (urlJoinCode) void joinSession(urlJoinCode);
+  }, [urlJoinCode, joinSession]);
 
   // Join session from URL on mount
   useEffect(() => {
-    if (urlJoinCode && uid_) {
-      joinSession(urlJoinCode);
+    if (urlJoinCode && uid_ && authStatus === 'signedIn') {
+      void joinSession(urlJoinCode);
     }
-  }, [urlJoinCode, uid_, joinSession]);
+  }, [urlJoinCode, uid_, authStatus, joinSession]);
 
   const chooseAvatar = (avatarId: string) => {
     setMe((prev) => ({ ...prev, avatar: avatarId }));
@@ -454,6 +496,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const value: SessionContextValue = {
     uid: uid_,
+    authStatus,
+    authError,
+    retryAuthentication,
+    syncStatus,
+    joinError,
+    retryJoin,
     syncError,
     retrySync,
     view,

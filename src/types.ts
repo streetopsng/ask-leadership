@@ -100,6 +100,12 @@ export type ViewName =
 // ── SessionContext value ──────────────────────────────────────────────
 export interface SessionContextValue {
   uid: string | null;
+  authStatus: 'idle' | 'signingIn' | 'signedIn' | 'error';
+  authError: Error | null;
+  retryAuthentication: () => void;
+  syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
+  joinError: Error | null;
+  retryJoin: () => void;
   syncError: Error | null;
   retrySync: () => void;
   view: ViewName;

@@ -11,9 +11,33 @@ import ClosingView from './components/views/ClosingView';
 import ToastStack from './components/common/ToastStack';
 import RoleSwitcher from './components/common/RoleSwitcher';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import InitializationFallback from './components/common/InitializationFallback';
 
 function MainApp() {
-  const { restartDemo, retrySync } = useSession();
+  const {
+    authStatus,
+    syncStatus,
+    restartDemo,
+    retryAuthentication,
+    retryJoin,
+    retrySync,
+  } = useSession();
+
+  if (authStatus === 'signingIn') {
+    return <InitializationFallback state="signingIn" onRetry={retryAuthentication} />;
+  }
+
+  if (authStatus === 'error') {
+    return <InitializationFallback state="authError" onRetry={retryAuthentication} />;
+  }
+
+  if (syncStatus === 'syncing') {
+    return <InitializationFallback state="joining" onRetry={retryJoin} />;
+  }
+
+  if (syncStatus === 'error') {
+    return <InitializationFallback state="joinError" onRetry={retryJoin} />;
+  }
 
   return (
     <div className="min-h-screen bg-cream text-ink font-body selection:bg-brand-purple selection:text-ink">
