@@ -20,6 +20,7 @@ CONTEXT.md
 
 # Editor directories and files
 .playwright-mcp/
+.scratch/
 .vscode/*
 !.vscode/extensions.json
 .idea

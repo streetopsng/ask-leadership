@@ -39,6 +39,7 @@ describe('sessionService', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
+    mockGetDoc.mockImplementation(() => Promise.resolve({ exists: () => false }))
     mod = await import('../sessionService')
   })
 
@@ -83,19 +84,56 @@ describe('sessionService', () => {
   describe('submitFirestoreQuestion', () => {
     it('writes question to subcollection with participantUid', async () => {
       const question = { id: 'q1', text: 'Why?', avatarId: 'cat' }
+      mockRunTransaction.mockImplementation(async (_db, fn) => {
+        const tx = {
+          get: vi.fn().mockResolvedValue({ exists: () => false }),
+          set: vi.fn(),
+          update: vi.fn(),
+        }
+        await fn(tx)
+        expect(tx.set).toHaveBeenCalledTimes(2)
+        const questionWrite = tx.set.mock.calls.find(([ref]) => ref.id === 'q1')
+        expect(questionWrite).toBeTruthy()
+        expect(questionWrite![1]).toMatchObject({
+          text: 'Why?',
+          participantUid: 'user-abc',
+          avatarId: 'cat',
+          votes: 0,
+          answered: false,
+        })
+      })
 
       await mod.submitFirestoreQuestion('AL-TEST', 'user-abc', question)
+      expect(mockRunTransaction).toHaveBeenCalledOnce()
+    })
 
-      expect(mockSetDoc).toHaveBeenCalledOnce()
-      const [ref, data] = mockSetDoc.mock.calls[0]
-      expect(ref.id).toBe('q1')
-      expect(data).toMatchObject({
-        text: 'Why?',
-        participantUid: 'user-abc',
-        avatarId: 'cat',
-        votes: 0,
-        answered: false,
+    it('writes TTL metadata for session cleanup', async () => {
+      const question = { id: 'ttl-q', text: 'Cleanup?', avatarId: 'fox' }
+      mockRunTransaction.mockImplementation(async (_db, fn) => {
+        const tx = {
+          get: vi.fn().mockResolvedValue({ exists: () => false }),
+          set: vi.fn(),
+          update: vi.fn(),
+        }
+        await fn(tx)
+        const qWrite = tx.set.mock.calls.find(([ref]) => ref.id === 'ttl-q')
+        expect(qWrite![1]).toMatchObject({ expireAt: expect.any(Date) })
       })
+
+      await mod.submitFirestoreQuestion('AL-TEST', 'user-abc', question)
+    })
+
+    it('rejects when the participant is still within the rate limit window', async () => {
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        data: () => ({ lastSubmissionAt: { toMillis: () => Date.now() - 4000 } }),
+      })
+
+      const question = { id: 'q2', text: 'Too soon?', avatarId: 'fox' }
+      const result = await mod.submitFirestoreQuestion('AL-TEST', 'user-abc', question)
+
+      expect(result).toBe(false)
+      expect(mockSetDoc).not.toHaveBeenCalled()
     })
   })
 

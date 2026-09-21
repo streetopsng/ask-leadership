@@ -121,6 +121,8 @@ export interface SessionContextValue {
   me: Me;
   toasts: Toast[];
   presenceCount: number;
+  questionSubmitLocked: boolean;
+  questionSubmitCooldownMs: number;
   showToast: (msg: string, action?: Toast['action']) => void;
   activePool: Question[];
   submittedCount: number;

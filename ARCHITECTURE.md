@@ -17,7 +17,8 @@ sessions/{sessionId}
   ├── round: number            # current voting round, incremented by host
   ├── currentQuestionId: string|null
   ├── config: { participants, leaders, date, time, duration, meetingLink, location }
-  └── createdAt, updatedAt
+  ├── createdAt, updatedAt
+  └── expireAt: timestamp      # native Firestore TTL; docs auto-expire after 30 days
 
   sessions/{sessionId}/questions/{questionId}
     ├── text: string
@@ -25,10 +26,18 @@ sessions/{sessionId}
     ├── votes: number          # atomic increment, reset each Round
     ├── avatarId: string
     ├── answered: boolean
-    └── createdAt
+    ├── createdAt
+    └── expireAt: timestamp    # per-collection TTL cleanup for stale room content
 
   sessions/{sessionId}/votes/{round}_{uid}
     # one document per participant per Round — server-side write-once check
+    ├── votedFor: string
+    ├── createdAt
+    └── expireAt: timestamp    # round markers also expire after 30 days
+
+  sessions/{sessionId}/rate_limits/{uid}
+    ├── lastSubmissionAt: timestamp
+    └── expireAt: timestamp    # cleanup window for rate-limit markers
 ```
 
 ### Realtime Database
@@ -89,7 +98,10 @@ Full rules live in `firestore.rules` and `database.rules.json` (to be added).
 - `firebase.json`: Firestore rules + indexes, RTDB rules, Hosting (serves `dist/`)
 - `firebase emulators:start` for local dev
 - `.env.local` (gitignored) for Firebase config; `.env.example` as template
+- Firestore TTL is configured outside the app by setting an `expireAt` field on each document and enabling TTL in the Google Cloud console or via gcloud, for example: `gcloud firestore fields ttl-fields update --database='(default)' --collection-path='sessions' --field='expireAt'`
 - `firebase deploy` for production
+
+> Native Firestore TTL does not cascade across collections. Each collection with `expireAt` is configured separately; the app writes the field to sessions, questions, votes, and rate-limit markers. Deletion can lag by ~48 hours after the `expireAt` timestamp.
 
 ## File Structure
 

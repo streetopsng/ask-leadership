@@ -12,6 +12,8 @@ export default function RoomView() {
     me,
     questions,
     presenceCount,
+    questionSubmitLocked,
+    questionSubmitCooldownMs,
     submittedCount,
     answeredCount,
     remainingCount,
@@ -25,6 +27,7 @@ export default function RoomView() {
   const round = session?.round ?? 1;
   const mode = session?.config?.mode;
   const [questionInput, setQuestionInput] = useState('');
+  const submitCooldownSeconds = Math.max(0, Math.ceil(questionSubmitCooldownMs / 1000));
 
   const handleAskSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -93,10 +96,17 @@ export default function RoomView() {
                   />
                   <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2.5 mt-3">
                     <span className="font-mono text-xs text-muted-ink order-2 sm:order-1 text-right sm:text-left">
-                      {240 - questionInput.length} characters left
+                      {questionSubmitLocked
+                        ? `Please slow down — try again in ${submitCooldownSeconds}s.`
+                        : `${240 - questionInput.length} characters left`}
                     </span>
-                    <Button type="submit" variant="primary" className="order-1 sm:order-2 w-full sm:w-auto">
-                      Ask anonymously
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      disabled={questionSubmitLocked}
+                      className="order-1 sm:order-2 w-full sm:w-auto"
+                    >
+                      {questionSubmitLocked ? `Wait ${submitCooldownSeconds}s` : 'Ask anonymously'}
                     </Button>
                   </div>
                 </form>

@@ -83,6 +83,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [joinError, setJoinError] = useState<Error | null>(null);
   const [syncError, setSyncError] = useState<Error | null>(null);
   const [syncRevision, setSyncRevision] = useState(0);
+  const [questionSubmitCooldownUntil, setQuestionSubmitCooldownUntil] = useState<number | null>(null);
+  const [questionSubmitCooldownMs, setQuestionSubmitCooldownMs] = useState(0);
   const [me, setMe] = useState<Me>({ avatar: null, joined: false, myQuestionId: null, votedThisRound: false, justVotedId: null });
   const unsubSessionRef = useRef<(() => void) | null>(null);
   const unsubQuestionsRef = useRef<(() => void) | null>(null);
@@ -239,6 +241,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     syncToFirestoreRef.current = syncToFirestore;
   });
 
+  useEffect(() => {
+    if (questionSubmitCooldownUntil === null) return;
+
+    const tick = () => {
+      const remaining = Math.max(0, questionSubmitCooldownUntil - Date.now());
+      setQuestionSubmitCooldownMs(remaining);
+      if (remaining === 0) setQuestionSubmitCooldownUntil(null);
+    };
+
+    tick();
+    const timer = window.setInterval(tick, 250);
+    return () => window.clearInterval(timer);
+  }, [questionSubmitCooldownUntil]);
+
+  const questionSubmitLocked = questionSubmitCooldownMs > 0;
+
   const questionsWithMine = useMemo(() => withMine(questions, uid_), [questions, uid_]);
 
   const activePool = questionsWithMine.filter((q) => !q.answered);
@@ -356,6 +374,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       showToast('Type your question first');
       return;
     }
+
+    const now = Date.now();
+    if (questionSubmitCooldownUntil && now < questionSubmitCooldownUntil) {
+      const remainingSeconds = Math.max(1, Math.ceil((questionSubmitCooldownUntil - now) / 1000));
+      showToast(`Please slow down. Try again in ${remainingSeconds}s.`);
+      return;
+    }
+
     const newQ: Question = {
       id: uid(),
       text: trimmed,
@@ -364,14 +390,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       answered: false,
       participantUid: uid_,
       pending: true,
-      ts: Date.now(),
+      ts: now,
     };
 
+    setQuestionSubmitCooldownUntil(now + 10_000);
     setQuestions((prev) => [{ ...newQ, mine: true }, ...prev]);
     setMe((prev) => ({ ...prev, myQuestionId: newQ.id }));
     showToast('You just added your voice.');
 
-    await syncToFirestore(() => submitFirestoreQuestion(session!.id!, uid_!, newQ));
+    const ok = await syncToFirestore(() => submitFirestoreQuestion(session!.id!, uid_!, newQ));
+    if (ok === false) {
+      setQuestionSubmitCooldownUntil(now + 10_000);
+      setQuestions((prev) => prev.filter((q) => q.id !== newQ.id));
+      setMe((prev) => ({ ...prev, myQuestionId: null }));
+      showToast('Please slow down. Try again in a few seconds.');
+    }
   };
 
   const openSubmissions = async () => {
@@ -463,11 +496,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   };
 
   const endSession = async () => {
+    const sessionExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     patchSession({ phase: 'ended' });
     setClosingStep(remainingCount > 0 || answeredCount < submittedCount ? 0 : 1);
     setView('closing');
 
-    await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'ended' }));
+    await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'ended', expireAt: sessionExpiry }));
   };
 
   const restartDemo = () => {
@@ -516,6 +550,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     me,
     toasts,
     presenceCount,
+    questionSubmitLocked,
+    questionSubmitCooldownMs,
     showToast,
     activePool,
     submittedCount,

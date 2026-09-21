@@ -27,6 +27,12 @@ import { timestampMillis } from '../lib/timestamps';
 import type { Session, Question, VoteMarker, SessionConfig } from '../types';
 
 const SESSIONS = 'sessions';
+const QUESTION_SUBMIT_COOLDOWN_MS = 10_000;
+const TTL_DAYS = 30;
+
+function ttlDateFromNow(days = TTL_DAYS): Date {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+}
 
 function sessionRef(id: string) {
   return doc(db!, SESSIONS, id);
@@ -36,8 +42,23 @@ function questionRef(sessionId: string, questionId: string) {
   return doc(db!, SESSIONS, sessionId, 'questions', questionId);
 }
 
+function rateLimitRef(sessionId: string, uid: string) {
+  return doc(db!, SESSIONS, sessionId, 'rate_limits', uid);
+}
+
 function voteRef(sessionId: string, round: number, uid: string) {
   return doc(db!, SESSIONS, sessionId, 'votes', `${round}_${uid}`);
+}
+
+async function isQuestionRateLimited(sessionId: string, participantUid: string): Promise<boolean> {
+  const ref = rateLimitRef(sessionId, participantUid);
+  const snap = await getDoc(ref);
+  if (!snap || typeof snap.exists !== 'function' || !snap.exists()) return false;
+
+  const lastSubmissionAt = snap.data()?.lastSubmissionAt;
+  if (!lastSubmissionAt) return false;
+
+  return Date.now() - timestampMillis(lastSubmissionAt) < QUESTION_SUBMIT_COOLDOWN_MS;
 }
 
 /**
@@ -58,6 +79,7 @@ export async function createFirestoreSession(
     config,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
+    expireAt: ttlDateFromNow(),
   });
 
   return sessionId;
@@ -151,17 +173,41 @@ export async function submitFirestoreQuestion(
 ): Promise<boolean> {
   if (!isFirebaseConfigured()) return false;
 
-  await setDoc(questionRef(sessionId, question.id), {
-    text: question.text,
-    participantUid,
-    avatarId: question.avatarId,
-    votes: 0,
-    answered: false,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  if (await isQuestionRateLimited(sessionId, participantUid)) return false;
 
-  return true;
+  try {
+    await runTransaction(db!, async (tx) => {
+      const rateLimitSnap = await tx.get(rateLimitRef(sessionId, participantUid));
+      if (rateLimitSnap.exists()) {
+        const lastSubmissionAt = rateLimitSnap.data()?.lastSubmissionAt;
+        if (lastSubmissionAt && Date.now() - timestampMillis(lastSubmissionAt) < QUESTION_SUBMIT_COOLDOWN_MS) {
+          throw new Error('RATE_LIMITED');
+        }
+      }
+
+      tx.set(questionRef(sessionId, question.id), {
+        text: question.text,
+        participantUid,
+        avatarId: question.avatarId,
+        votes: 0,
+        answered: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        expireAt: ttlDateFromNow(),
+      });
+
+      tx.set(rateLimitRef(sessionId, participantUid), {
+        lastSubmissionAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        expireAt: ttlDateFromNow(),
+      }, { merge: true });
+    });
+
+    return true;
+  } catch (err) {
+    if ((err as Error).message === 'RATE_LIMITED') return false;
+    throw err;
+  }
 }
 
 /**
@@ -183,8 +229,8 @@ export async function voteFirestoreQuestion(
       const markerSnap = await tx.get(marker);
       if (markerSnap.exists()) throw new Error('ALREADY_VOTED');
 
-      tx.set(marker, { votedFor: questionId, createdAt: serverTimestamp() });
-      tx.update(qRef, { votes: increment(1) });
+      tx.set(marker, { votedFor: questionId, createdAt: serverTimestamp(), expireAt: ttlDateFromNow() });
+      tx.update(qRef, { votes: increment(1), expireAt: ttlDateFromNow() });
     });
     return true;
   } catch (err) {
@@ -211,6 +257,7 @@ export async function markFirestoreQuestionAnswered(
   await updateDoc(sessionRef(sessionId), {
     phase: 'followup',
     updatedAt: serverTimestamp(),
+    expireAt: ttlDateFromNow(),
   });
 
   return true;
@@ -245,6 +292,7 @@ export async function updateFirestoreSessionPhase(
   await updateDoc(sessionRef(sessionId), {
     ...patch,
     updatedAt: serverTimestamp(),
+    expireAt: patch.phase === 'ended' ? ttlDateFromNow() : undefined,
   });
 
   return true;
