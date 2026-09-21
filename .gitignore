@@ -10,12 +10,17 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+docs/
+AGENTS.md
+CONTEXT.md
 *.local
 .env
 .env.*
 !.env.example
 
 # Editor directories and files
+.playwright-mcp/
+.scratch/
 .vscode/*
 !.vscode/extensions.json
 .idea

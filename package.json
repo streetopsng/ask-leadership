@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "npx firebase emulators:exec --project demo-ask-leadership \"npx vitest run src/firebase/__tests__/emulator-rate-limit.test.ts\""
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -17,10 +20,17 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "firebase-tools": "^14.16.0",
+    "jsdom": "^29.1.1",
     "oxlint": "^1.81.0",
-    "vite": "^8.3.0"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
   }
 }
