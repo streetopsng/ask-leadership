@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useSession } from '../../context/SessionContext';
 import { isDemoMode, isFirebaseConfigured } from '../../firebase/config';
 import {
-  listHostSessionSummaries,
-  listFirestoreQuestions,
+  listHostSessionSummaryPage,
+  listFirestoreQuestionsForHost,
+  type HostSessionPage,
   type HostSessionSummary,
 } from '../../firebase/sessionService';
 import { buildCsv, buildFollowUpList, downloadCsv } from '../../lib/sessionExport';
@@ -23,6 +24,8 @@ export default function HostDashboardView() {
   const { uid, setView, showToast } = useSession();
   const [status, setStatus] = useState<ListStatus>('loading');
   const [summaries, setSummaries] = useState<HostSessionSummary[]>([]);
+  const [page, setPage] = useState<HostSessionPage>({ sessions: [], cursor: null, hasMore: false });
+  const [loadingMore, setLoadingMore] = useState(false);
   const [revision, setRevision] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailQuestions, setDetailQuestions] = useState<Question[]>([]);
@@ -39,10 +42,13 @@ export default function HostDashboardView() {
     let cancelled = false;
     // eslint-disable-next-line react/set-state-in-effect -- intentional loading reset per fetch
     setStatus('loading');
-    listHostSessionSummaries(uid)
-      .then((rows) => {
+    setSummaries([]);
+    setPage({ sessions: [], cursor: null, hasMore: false });
+    listHostSessionSummaryPage(uid)
+      .then(({ summaries: rows, ...nextPage }) => {
         if (cancelled) return;
         setSummaries(rows);
+        setPage(nextPage);
         setStatus('ready');
       })
       .catch(() => {
@@ -53,6 +59,18 @@ export default function HostDashboardView() {
     };
   }, [uid, revision]);
 
+  const loadMore = () => {
+    if (!uid || !page.cursor || loadingMore) return;
+    setLoadingMore(true);
+    listHostSessionSummaryPage(uid, 20, page.cursor)
+      .then(({ summaries: rows, ...nextPage }) => {
+        setSummaries((current) => [...current, ...rows]);
+        setPage(nextPage);
+      })
+      .catch(() => showToast('Could not load more sessions.'))
+      .finally(() => setLoadingMore(false));
+  };
+
   const selected: { session: Session; summary: HostSessionSummary } | null = (() => {
     if (!selectedId) return null;
     const summary = summaries.find((s) => s.session.id === selectedId);
@@ -60,12 +78,13 @@ export default function HostDashboardView() {
   })();
 
   const openSummary = (id: string) => {
+    if (!uid) return;
     setSelectedId(id);
     setDetailQuestions([]);
     setDetailStatus('loading');
     detailRequestRef.current += 1;
     const request = detailRequestRef.current;
-    listFirestoreQuestions(id)
+    listFirestoreQuestionsForHost(id, uid)
       .then((qs) => {
         if (detailRequestRef.current !== request) return;
         setDetailQuestions(qs);
@@ -185,6 +204,13 @@ export default function HostDashboardView() {
                 </div>
               );
             })}
+            {page.hasMore && (
+              <div className="flex justify-center pt-2">
+                <Button size="sm" variant="ghost" onClick={loadMore} disabled={loadingMore}>
+                  {loadingMore ? 'Loading…' : 'Load more sessions'}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

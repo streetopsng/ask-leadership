@@ -37,8 +37,9 @@ vi.mock('../../../firebase/sessionService', () => ({
   updateFirestoreSessionPhase: vi.fn(),
   resetQuestionVotes: vi.fn(),
   deleteFirestoreQuestion: vi.fn(),
-  listHostSessionSummaries: (...args: unknown[]) => summariesFn(...args),
-  listFirestoreQuestions: (...args: unknown[]) => listQuestionsFn(...args),
+  listHostSessionSummaryPage: (...args: unknown[]) =>
+    summariesFn(...args).then((summaries) => ({ summaries, cursor: null, hasMore: false })),
+  listFirestoreQuestionsForHost: (...args: unknown[]) => listQuestionsFn(...args),
 }));
 
 vi.mock('../../../firebase/presence', () => ({
@@ -134,7 +135,7 @@ describe('HostDashboardView', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Open summary for AL-NEW' }, { timeout: 5000 }));
 
-    await waitFor(() => expect(listQuestionsFn).toHaveBeenCalledWith('AL-NEW'));
+    await waitFor(() => expect(listQuestionsFn).toHaveBeenCalledWith('AL-NEW', 'host-1'));
     expect(await screen.findByRole('button', { name: 'Download session CSV' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Copy follow-up list' })).toBeTruthy();
   });

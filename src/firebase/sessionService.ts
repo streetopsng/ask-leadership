@@ -13,11 +13,14 @@ import {
   orderBy,
   getDocs,
   where,
+  startAfter,
+  limit,
   writeBatch,
   getCountFromServer,
   type DocumentData,
   type DocumentSnapshot,
   type QuerySnapshot,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './config';
 import { timestampMillis } from '../lib/timestamps';
@@ -276,6 +279,41 @@ export interface HostSessionSummary {
   unanswered: number;
 }
 
+export interface HostSessionPage {
+  sessions: Session[];
+  cursor: QueryDocumentSnapshot<DocumentData> | null;
+  hasMore: boolean;
+}
+
+/**
+ * Lists one page of sessions hosted by the given uid, newest first.
+ * The cursor keeps the dashboard from loading every historical session at once.
+ */
+export async function listHostSessionsPage(
+  hostUid: string,
+  pageSize = 20,
+  cursor?: QueryDocumentSnapshot<DocumentData>
+): Promise<HostSessionPage> {
+  if (!isFirebaseConfigured()) return { sessions: [], cursor: null, hasMore: false };
+
+  const constraints = [
+    where('hostUid', '==', hostUid),
+    orderBy('createdAt', 'desc'),
+    ...(cursor ? [startAfter(cursor)] : []),
+    limit(pageSize),
+  ];
+  const snapshot: QuerySnapshot<DocumentData> = await getDocs(
+    query(collection(db!, SESSIONS), ...constraints)
+  );
+  const sessions = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Session);
+
+  return {
+    sessions,
+    cursor: snapshot.docs.at(-1) ?? null,
+    hasMore: snapshot.docs.length === pageSize,
+  };
+}
+
 /**
  * Lists sessions hosted by the given uid, newest first.
  * Filters server-side on hostUid; sorts client-side so no composite
@@ -328,6 +366,24 @@ export async function listHostSessionSummaries(hostUid: string): Promise<HostSes
 }
 
 /**
+ * Loads one dashboard page and its per-session question totals.
+ */
+export async function listHostSessionSummaryPage(
+  hostUid: string,
+  pageSize = 20,
+  cursor?: QueryDocumentSnapshot<DocumentData>
+): Promise<{ summaries: HostSessionSummary[]; cursor: QueryDocumentSnapshot<DocumentData> | null; hasMore: boolean }> {
+  const page = await listHostSessionsPage(hostUid, pageSize, cursor);
+  const summaries = await Promise.all(
+    page.sessions.map(async (session) => {
+      const { submitted, answered } = await countSessionQuestions(session.id!);
+      return { session, submitted, answered, unanswered: Math.max(0, submitted - answered) };
+    })
+  );
+  return { summaries, cursor: page.cursor, hasMore: page.hasMore };
+}
+
+/**
  * One-time read of a session's questions, newest first, for the
  * read-only summary/export view.
  */
@@ -339,4 +395,20 @@ export async function listFirestoreQuestions(sessionId: string): Promise<Questio
   );
 
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Question));
+}
+
+/**
+ * Prevents the dashboard from opening a summary for a session it did not list
+ * as hosted by the current anonymous identity. Firestore rules still govern
+ * the underlying question read shared with the live join-by-code flow.
+ */
+export async function listFirestoreQuestionsForHost(
+  sessionId: string,
+  hostUid: string
+): Promise<Question[]> {
+  const session = await getFirestoreSession(sessionId);
+  if (!session || session.hostUid !== hostUid) {
+    throw new Error('Only the session host can open its summary');
+  }
+  return listFirestoreQuestions(sessionId);
 }

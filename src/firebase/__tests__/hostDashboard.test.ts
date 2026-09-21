@@ -1,16 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockGetDocs = vi.fn()
+const mockGetDoc = vi.fn()
 const mockGetCountFromServer = vi.fn()
 const mockCollection = vi.fn((...args: unknown[]) => ({ path: args.join('/') }))
 const mockQuery = vi.fn((...args: unknown[]) => ({ query: args }))
 const mockWhere = vi.fn((...args: unknown[]) => ({ where: args }))
 const mockOrderBy = vi.fn((...args: unknown[]) => ({ orderBy: args }))
+const mockStartAfter = vi.fn((...args: unknown[]) => ({ startAfter: args }))
+const mockLimit = vi.fn((...args: unknown[]) => ({ limit: args }))
 
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(),
+  getDoc: mockGetDoc,
   setDoc: vi.fn(),
-  getDoc: vi.fn(),
   onSnapshot: vi.fn(),
   updateDoc: vi.fn(),
   deleteDoc: vi.fn(),
@@ -21,6 +24,8 @@ vi.mock('firebase/firestore', () => ({
   query: mockQuery,
   orderBy: mockOrderBy,
   where: mockWhere,
+  startAfter: mockStartAfter,
+  limit: mockLimit,
   getDocs: mockGetDocs,
   getCountFromServer: mockGetCountFromServer,
   writeBatch: vi.fn(),
@@ -76,6 +81,17 @@ describe('host dashboard service', () => {
 
       expect(result).toEqual([])
       expect(mockGetDocs).not.toHaveBeenCalled()
+    })
+
+    it('supports a cursor and page size for dashboard pagination', async () => {
+      const cursor = { id: 'AL-PREVIOUS' }
+      mockGetDocs.mockResolvedValue({ docs: [] })
+
+      await mod.listHostSessionsPage('host-1', 20, cursor as never)
+
+      expect(mockOrderBy).toHaveBeenCalledWith('createdAt', 'desc')
+      expect(mockStartAfter).toHaveBeenCalledWith(cursor)
+      expect(mockLimit).toHaveBeenCalledWith(20)
     })
   })
 
@@ -160,6 +176,19 @@ describe('host dashboard service', () => {
       const result = await mod.listFirestoreQuestions('AL-TEST')
 
       expect(result).toEqual([])
+      expect(mockGetDocs).not.toHaveBeenCalled()
+    })
+
+    it('does not load summary questions when the caller is not the host', async () => {
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        id: 'AL-TEST',
+        data: () => ({ hostUid: 'host-1' }),
+      })
+
+      await expect(mod.listFirestoreQuestionsForHost('AL-TEST', 'other-user')).rejects.toThrow(
+        'Only the session host can open its summary'
+      )
       expect(mockGetDocs).not.toHaveBeenCalled()
     })
   })
