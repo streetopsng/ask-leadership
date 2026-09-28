@@ -99,9 +99,14 @@ export type ViewName =
   | 'room'
   | 'closing';
 
+// ── GummyGum launch state ───────────────────────────────────────────
+export type GgAccessState = 'checking' | 'granted' | 'denied';
+
 // ── SessionContext value ──────────────────────────────────────────────
 export interface SessionContextValue {
   uid: string | null;
+  ggAccessState: GgAccessState;
+  ggSession: import('./lib/gummygumSession').GummyGumLaunchSession | null;
   authStatus: 'idle' | 'signingIn' | 'signedIn' | 'error';
   authError: Error | null;
   retryAuthentication: () => void;

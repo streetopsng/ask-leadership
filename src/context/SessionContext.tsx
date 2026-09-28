@@ -17,7 +17,8 @@ import { applyQuestionSnapshot, withMine } from './sessionModel';
 import { goOnline, goOffline, subscribeToPresence } from '../firebase/presence';
 import { AVATARS } from '../constants/avatars';
 import { SAMPLE_QUESTIONS } from '../constants/seedData';
-import type { Session, Question, Me, Toast, ViewName, SessionConfig, SessionContextValue } from '../types';
+import { resolveGummyGumLaunch, reportGummyGumResult, type GummyGumLaunchSession } from '../lib/gummygumSession';
+import type { Session, Question, Me, Toast, ViewName, SessionConfig, SessionContextValue, GgAccessState } from '../types';
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
@@ -86,6 +87,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [questionSubmitCooldownUntil, setQuestionSubmitCooldownUntil] = useState<number | null>(null);
   const [questionSubmitCooldownMs, setQuestionSubmitCooldownMs] = useState(0);
   const [me, setMe] = useState<Me>({ avatar: null, joined: false, myQuestionId: null, votedThisRound: false, justVotedId: null });
+  const [ggSession, setGgSession] = useState<GummyGumLaunchSession | null>(null);
+  const [ggAccessState, setGgAccessState] = useState<GgAccessState>(isDemoMode() ? 'granted' : 'checking');
+  const ggRoutedRef = useRef(false);
   const unsubSessionRef = useRef<(() => void) | null>(null);
   const unsubQuestionsRef = useRef<(() => void) | null>(null);
   const unsubMyVoteRef = useRef<(() => void) | null>(null);
@@ -113,6 +117,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const patchSession = useCallback((patch: Partial<Session>) => {
     setSession((prev) => (prev ? { ...prev, ...patch } : prev));
+  }, []);
+
+  // Verify the GummyGum launch token (or resume a stored launch session) on mount.
+  // Demo mode is an explicit offline/pitch feature (see README) so it bypasses the gate.
+  useEffect(() => {
+    if (isDemoMode()) return;
+    resolveGummyGumLaunch().then((gg) => {
+      setGgSession(gg);
+      setGgAccessState(gg ? 'granted' : 'denied');
+    });
   }, []);
 
   // Auth on mount
@@ -356,6 +370,58 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [urlJoinCode, uid_, authStatus, joinSession]);
 
+  // GummyGum-launched host: the room's config was already collected in the
+  // hub's setup modal, so skip the manual hostSetup/hostReady screens and
+  // resume (or create) the room directly using the hub's own room code.
+  const beginGummyGumHostSession = useCallback(
+    async (gg: GummyGumLaunchSession) => {
+      const code = gg.roomCode;
+      if (!code) return;
+      const cfg: SessionConfig = { ...DRAFT_CONFIG, ...((gg.config as Partial<SessionConfig> | null) ?? {}) };
+
+      if (isSyncEnabled) {
+        try {
+          const existing = await getFirestoreSession(code);
+          if (existing) {
+            setSession(existing);
+            setQuestions([]);
+            setView(existing.phase === 'ended' ? 'closing' : 'hostControl');
+            return;
+          }
+        } catch {
+          // fall through to create a fresh room below
+        }
+      }
+
+      const newSession: Session = {
+        id: code,
+        hostUid: uid_,
+        phase: 'setup',
+        round: 1,
+        currentQuestionId: null,
+        config: cfg,
+      };
+      setSession(newSession);
+      setQuestions([]);
+      setView('hostControl');
+      await syncToFirestore(() => createFirestoreSession(code, uid_!, cfg));
+    },
+    [uid_, isSyncEnabled, syncToFirestore]
+  );
+
+  // Route a resolved GummyGum launch into the right flow: host resumes/creates
+  // the room, participant joins it directly by the hub's room code.
+  useEffect(() => {
+    if (ggRoutedRef.current) return;
+    if (ggAccessState !== 'granted' || !ggSession || !uid_ || authStatus !== 'signedIn') return;
+    ggRoutedRef.current = true;
+    if (ggSession.isHost) {
+      void beginGummyGumHostSession(ggSession);
+    } else if (ggSession.roomCode) {
+      void joinSession(ggSession.roomCode);
+    }
+  }, [ggAccessState, ggSession, uid_, authStatus, beginGummyGumHostSession, joinSession]);
+
   const chooseAvatar = (avatarId: string) => {
     setMe((prev) => ({ ...prev, avatar: avatarId }));
   };
@@ -501,6 +567,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setClosingStep(remainingCount > 0 || answeredCount < submittedCount ? 0 : 1);
     setView('closing');
 
+    if (ggSession?.isHost) {
+      void reportGummyGumResult({
+        score: answeredCount,
+        submittedCount,
+        answeredCount,
+        remainingCount,
+        name: ggSession.player?.name || 'Host',
+      });
+    }
+
     await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'ended', expireAt: sessionExpiry }));
   };
 
@@ -531,6 +607,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const value: SessionContextValue = {
     uid: uid_,
+    ggAccessState,
+    ggSession,
     authStatus,
     authError,
     retryAuthentication,

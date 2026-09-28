@@ -4,9 +4,11 @@ import Button from '../common/Button';
 import AvatarBlob from '../common/AvatarBlob';
 import { Pill } from '../common/Pill';
 import { MicIcon } from '../../constants/icons';
+import { reportGummyGumCancel, returnToGummyGum } from '../../lib/gummygumSession';
 
 export default function HostControlView() {
   const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const {
     session,
     questions,
@@ -26,6 +28,7 @@ export default function HostControlView() {
     removeQuestion,
     restartDemo,
     presenceCount,
+    ggSession,
   } = useSession();
 
   if (!session) return null;
@@ -141,14 +144,54 @@ export default function HostControlView() {
       <main className="p-6 md:p-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-display font-bold text-2xl text-ink">Live session</h2>
-          <button
-            type="button"
-            onClick={() => setView('landing')}
-            className="font-mono text-xs uppercase tracking-wider font-bold text-ink hover:text-purple-deep cursor-pointer"
-          >
-            Exit
-          </button>
+          {ggSession?.isHost ? (
+            <button
+              type="button"
+              onClick={() => setShowCancelModal(true)}
+              className="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider font-bold text-ink hover:text-purple-deep cursor-pointer"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              Back to GummyGum
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setView('landing')}
+              className="font-mono text-xs uppercase tracking-wider font-bold text-ink hover:text-purple-deep cursor-pointer"
+            >
+              Exit
+            </button>
+          )}
         </div>
+
+        {showCancelModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/60 backdrop-blur-xs">
+            <div className="bg-white border-[2.5px] border-ink rounded-2xl p-6 max-w-sm w-full text-center shadow-hard-lg">
+              <h3 className="font-display font-bold text-lg text-ink mb-2">Cancel session?</h3>
+              <p className="font-body font-semibold text-xs text-muted-ink mb-6 leading-relaxed">
+                This will close the session for all connected participants and return you to GummyGum.
+              </p>
+              <div className="flex gap-3">
+                <Button variant="ghost" fullWidth onClick={() => setShowCancelModal(false)}>
+                  Stay
+                </Button>
+                <Button
+                  variant="dark"
+                  fullWidth
+                  onClick={async () => {
+                    setShowCancelModal(false);
+                    await reportGummyGumCancel();
+                    returnToGummyGum();
+                  }}
+                >
+                  Exit to hub
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Current Active Question spotlight */}
         {currentQuestion && (phase === 'winner' || phase === 'answering' || phase === 'followup') && (

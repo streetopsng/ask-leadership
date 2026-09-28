@@ -3,6 +3,7 @@ import Button from '../common/Button';
 import Waveform from '../common/Waveform';
 import StageFrame from '../common/StageFrame';
 import { buildCsv, buildFollowUpList, downloadCsv } from '../../lib/sessionExport';
+import { returnToGummyGum } from '../../lib/gummygumSession';
 
 export default function ClosingView() {
   const {
@@ -16,6 +17,7 @@ export default function ClosingView() {
     session,
     uid,
     showToast,
+    ggSession,
   } = useSession();
 
   const isHost = session?.hostUid != null && uid != null && session.hostUid === uid;
@@ -141,9 +143,15 @@ export default function ClosingView() {
             Thanks for helping shape the conversation.
           </p>
 
-          <Button variant="ghost" onClick={restartDemo}>
-            Return to landing
-          </Button>
+          {ggSession ? (
+            <Button variant="ghost" onClick={returnToGummyGum}>
+              Back to GummyGum
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={restartDemo}>
+              Return to landing
+            </Button>
+          )}
         </StageFrame>
       </div>
     </div>
