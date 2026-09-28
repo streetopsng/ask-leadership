@@ -14,8 +14,26 @@ import RoleSwitcher from './components/common/RoleSwitcher';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import InitializationFallback from './components/common/InitializationFallback';
 
+function GummyGumLockedScreen() {
+  return (
+    <div className="min-h-screen w-full bg-cream text-ink flex items-center justify-center px-6">
+      <div className="max-w-sm w-full text-center space-y-4 bg-white border-[2.5px] border-ink rounded-3xl shadow-hard-lg p-8">
+        <h1 className="font-display font-bold text-xl text-ink">This experience is only available through GummyGum</h1>
+        <p className="text-muted-ink text-sm font-semibold">Open it from the GummyGum hub to run a session.</p>
+        <a
+          href="https://gummygum.app"
+          className="inline-flex items-center justify-center gap-2 rounded-full border-[2.5px] border-ink font-bold font-body bg-gold text-ink px-7 py-3.5 shadow-hard-md"
+        >
+          Go to GummyGum
+        </a>
+      </div>
+    </div>
+  );
+}
+
 function MainApp() {
   const {
+    ggAccessState,
     authStatus,
     syncStatus,
     restartDemo,
@@ -23,6 +41,14 @@ function MainApp() {
     retryJoin,
     retrySync,
   } = useSession();
+
+  if (ggAccessState === 'checking') {
+    return <div className="min-h-screen w-full bg-cream" />;
+  }
+
+  if (ggAccessState === 'denied') {
+    return <GummyGumLockedScreen />;
+  }
 
   if (authStatus === 'signingIn') {
     return <InitializationFallback state="signingIn" onRetry={retryAuthentication} />;

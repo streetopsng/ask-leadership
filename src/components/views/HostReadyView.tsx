@@ -4,12 +4,13 @@ import Button from '../common/Button';
 import { MicIcon, QrIcon } from '../../constants/icons';
 
 export default function HostReadyView() {
-  const { session, setView, showToast } = useSession();
+  const { session, setView, showToast, ggSession } = useSession();
   const [showQr, setShowQr] = useState(false);
 
   if (!session) return null;
   const { config } = session;
   const mode = config.mode;
+  const isGummyGum = !!ggSession;
 
   const joinUrl = `${window.location.origin}/?join=${session.id}`;
 
@@ -45,7 +46,7 @@ export default function HostReadyView() {
         <div className="text-center mb-8 animate-rise">
           <div className="inline-flex items-center gap-2 mb-3 bg-sage-tint text-sage-deep border-2 border-ink px-4 py-1.5 rounded-full font-mono text-xs uppercase tracking-wider font-bold">
             <MicIcon className="w-3.5 h-3.5" />
-            <span>{mode === 'virtual' ? 'Virtual' : 'Physical'} session · {session.id}</span>
+            <span>{mode === 'virtual' ? 'Virtual' : 'Physical'} session{!isGummyGum && ` · ${session.id}`}</span>
           </div>
 
           <h2 className="font-display font-bold text-3xl sm:text-4xl text-ink leading-tight">
@@ -58,18 +59,20 @@ export default function HostReadyView() {
         </div>
 
         <div className="bg-white border-[2.5px] border-ink rounded-3xl shadow-hard-lg p-6 sm:p-8 animate-rise space-y-4">
-          {/* Join Link Row */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-cream border-2 border-ink rounded-xl p-3.5 sm:p-4">
-            <div className="min-w-0">
-              <span className="block font-mono text-[10px] uppercase text-muted-ink font-bold">Session Join Link</span>
-              <span className="font-mono text-xs sm:text-sm text-purple-deep font-bold truncate block">
-                {joinUrl}
-              </span>
+          {/* Join Link Row — GummyGum already emailed participants their invite, so this stays organic-access only */}
+          {!isGummyGum && (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-cream border-2 border-ink rounded-xl p-3.5 sm:p-4">
+              <div className="min-w-0">
+                <span className="block font-mono text-[10px] uppercase text-muted-ink font-bold">Session Join Link</span>
+                <span className="font-mono text-xs sm:text-sm text-purple-deep font-bold truncate block">
+                  {joinUrl}
+                </span>
+              </div>
+              <Button variant="dark" size="sm" onClick={handleCopyJoin} className="shrink-0 w-full sm:w-auto">
+                Copy join link
+              </Button>
             </div>
-            <Button variant="dark" size="sm" onClick={handleCopyJoin} className="shrink-0 w-full sm:w-auto">
-              Copy join link
-            </Button>
-          </div>
+          )}
 
           {/* Meeting Link Row */}
           {mode === 'virtual' && (
@@ -83,20 +86,24 @@ export default function HostReadyView() {
             </div>
           )}
 
-          {/* QR toggle */}
-          <Button
-            variant="ghost"
-            fullWidth
-            onClick={() => setShowQr(!showQr)}
-            className="mt-2"
-          >
-            {showQr ? 'Hide QR code' : 'Show QR code'}
-          </Button>
+          {/* QR toggle — encodes the join link above, so it's organic-access only too */}
+          {!isGummyGum && (
+            <>
+              <Button
+                variant="ghost"
+                fullWidth
+                onClick={() => setShowQr(!showQr)}
+                className="mt-2"
+              >
+                {showQr ? 'Hide QR code' : 'Show QR code'}
+              </Button>
 
-          {showQr && (
-            <div className="w-36 h-36 mx-auto bg-white border-[2.5px] border-ink rounded-2xl p-3 shadow-hard-md animate-rise">
-              <QrIcon className="w-full h-full" />
-            </div>
+              {showQr && (
+                <div className="w-36 h-36 mx-auto bg-white border-[2.5px] border-ink rounded-2xl p-3 shadow-hard-md animate-rise">
+                  <QrIcon className="w-full h-full" />
+                </div>
+              )}
+            </>
           )}
 
           <div className="h-0.5 bg-line my-4" />

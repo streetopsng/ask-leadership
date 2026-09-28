@@ -4,10 +4,11 @@ import Waveform from '../common/Waveform';
 import { QrIcon } from '../../constants/icons';
 
 export default function EmployeeInviteView() {
-  const { session, setView, showToast } = useSession();
+  const { session, setView, showToast, ggSession } = useSession();
   if (!session) return null;
   const { config } = session;
   const mode = config.mode;
+  const isGummyGum = !!ggSession;
 
   const handleSimulateMeeting = () => {
     showToast('This would open your video meeting');
@@ -38,7 +39,7 @@ export default function EmployeeInviteView() {
           </div>
 
           <div className="font-mono text-xs uppercase tracking-wider font-bold text-purple-deep mb-2">
-            You're invited · Room {session.id}
+            {isGummyGum ? "You're invited" : `You're invited · Room ${session.id}`}
           </div>
 
           <h2 className="font-display font-bold text-3xl text-ink leading-snug mb-3">
