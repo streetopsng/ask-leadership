@@ -144,7 +144,7 @@ export default function ClosingView() {
           </p>
 
           {ggSession ? (
-            <Button variant="ghost" onClick={returnToGummyGum}>
+            <Button variant="ghost" onClick={() => returnToGummyGum()}>
               Back to GummyGum
             </Button>
           ) : (

@@ -1,9 +1,11 @@
 import { useSession } from '../../context/SessionContext';
+import { isDemoMode } from '../../firebase/config';
 
 export default function RoleSwitcher() {
-  const { session, me, demoRole, view, switchRole } = useSession();
+  const { session, me, demoRole, view, switchRole, ggSession } = useSession();
 
-  // Show if session exists or employee joined
+  // Role comes from the GummyGum launch; switching is only for the offline demo build.
+  if (ggSession || !isDemoMode()) return null;
   if (!session && !me.joined) return null;
 
   const currentRole = demoRole || (view.startsWith('host') ? 'host' : 'employee');

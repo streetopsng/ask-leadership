@@ -25,6 +25,7 @@ export default function HostControlView() {
     markAnswered,
     nextQuestion,
     endSession,
+    cancelSessionForAll,
     removeQuestion,
     restartDemo,
     presenceCount,
@@ -123,6 +124,10 @@ export default function HostControlView() {
             <Button variant="ghost" fullWidth onClick={endSession}>
               End session
             </Button>
+          ) : ggSession ? (
+            <Button variant="ghost" fullWidth onClick={() => returnToGummyGum(ggSession.hubUrl)}>
+              Back to GummyGum
+            </Button>
           ) : (
             <Button variant="ghost" fullWidth onClick={restartDemo}>
               Start a new session
@@ -183,7 +188,8 @@ export default function HostControlView() {
                   onClick={async () => {
                     setShowCancelModal(false);
                     await reportGummyGumCancel();
-                    returnToGummyGum();
+                    await cancelSessionForAll();
+                    returnToGummyGum(ggSession?.hubUrl);
                   }}
                 >
                   Exit to hub

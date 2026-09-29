@@ -10,7 +10,21 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string,
   appId: import.meta.env.VITE_FIREBASE_APP_ID as string,
+  // Optional: only needed when the Realtime Database (presence) isn't in the default US region.
+  ...(import.meta.env.VITE_FIREBASE_DATABASE_URL ? { databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL as string } : {}),
 };
+
+const REQUIRED_ENV: [string, string | undefined][] = [
+  ['VITE_FIREBASE_API_KEY', firebaseConfig.apiKey],
+  ['VITE_FIREBASE_AUTH_DOMAIN', firebaseConfig.authDomain],
+  ['VITE_FIREBASE_PROJECT_ID', firebaseConfig.projectId],
+  ['VITE_FIREBASE_STORAGE_BUCKET', firebaseConfig.storageBucket],
+  ['VITE_FIREBASE_MESSAGING_SENDER_ID', firebaseConfig.messagingSenderId],
+  ['VITE_FIREBASE_APP_ID', firebaseConfig.appId],
+];
+
+export const missingFirebaseEnvVars = (): string[] =>
+  REQUIRED_ENV.filter(([, value]) => !value).map(([name]) => name);
 
 export const isFirebaseConfigured = (): boolean => {
   return (

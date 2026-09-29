@@ -1,15 +1,21 @@
 import Button from './Button';
-import { reportGummyGumCancel } from '../../lib/gummygumSession';
+import { reportGummyGumCancel, returnToGummyGum } from '../../lib/gummygumSession';
 
 interface SessionExpiredModalProps {
   isHost: boolean;
-  context: 'lobby' | 'game';
+  context: 'lobby' | 'game' | 'ended' | 'completed';
   hubUrl: string | null;
 }
 
 export default function SessionExpiredModal({ isHost, context, hubUrl }: SessionExpiredModalProps) {
-  const message =
-    context === 'game'
+  const isEnded = context === 'ended' || context === 'completed';
+  const message = isEnded
+    ? isHost
+      ? 'This session has ended. Returning you to GummyGum...'
+      : context === 'completed'
+        ? 'This session is complete. Thank you for being here. You can close this tab now.'
+        : 'The host ended this session. You can close this tab now.'
+    : context === 'game'
       ? isHost
         ? 'This session was abandoned mid-session with nobody connected for several hours, so it has been ended. You can return to GummyGum to launch a fresh session.'
         : 'This session was ended after being abandoned for several hours. Thank you for being here. You can safely close this tab now.'
@@ -37,9 +43,13 @@ export default function SessionExpiredModal({ isHost, context, hubUrl }: Session
           <circle cx="12" cy="12" r="9" />
           <path d="M12 7v5l3 2" />
         </svg>
-        <h3 className="font-display font-bold text-lg text-ink mb-2">Session Expired</h3>
+        <h3 className="font-display font-bold text-lg text-ink mb-2">{isEnded ? 'Session Ended' : 'Session Expired'}</h3>
         <p className="font-body font-semibold text-xs text-muted-ink mb-6 leading-relaxed">{message}</p>
-        {isHost ? (
+        {isHost && isEnded ? (
+          <Button variant="dark" fullWidth onClick={() => returnToGummyGum(hubUrl ?? undefined)}>
+            Back to GummyGum
+          </Button>
+        ) : isHost ? (
           <Button variant="dark" fullWidth onClick={handleHostRehost}>
             Return to GummyGum to Rehost
           </Button>

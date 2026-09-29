@@ -1,5 +1,6 @@
 import type { Question, Session, SessionPhase } from '../types';
 import { timestampMillis } from '../lib/timestamps';
+import { DEFAULT_AVATAR_ID } from '../lib/avatars';
 
 /**
  * Pure helpers for shaping questions in the session state.
@@ -12,7 +13,7 @@ export function normalizeQuestion(raw: Partial<Question> & { id: string }): Ques
     text: raw.text || '',
     votes: raw.votes || 0,
     answered: raw.answered || false,
-    avatarId: raw.avatarId || 'panda',
+    avatarId: raw.avatarId || DEFAULT_AVATAR_ID,
     participantUid: raw.participantUid ?? null,
   };
 }
