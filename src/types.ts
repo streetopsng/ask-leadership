@@ -45,6 +45,7 @@ export interface Session {
   updatedAt?: unknown;
   lastActivity?: unknown;
   abandoned?: boolean;
+  hostedSessionId?: string | null;
 }
 
 // ── Questions ────────────────────────────────────────────────────────

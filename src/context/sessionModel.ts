@@ -1,4 +1,5 @@
-import type { Question, SessionPhase } from '../types';
+import type { Question, Session, SessionPhase } from '../types';
+import { timestampMillis } from '../lib/timestamps';
 
 /**
  * Pure helpers for shaping questions in the session state.
@@ -55,4 +56,21 @@ export function isLobbyIdleExpired(phase: SessionPhase | undefined, createdAtMs:
 
 export function isAbandonedInProgress(phase: SessionPhase | undefined, lastActivityMs: number, now: number): boolean {
   return !!phase && IN_PROGRESS_PHASES.includes(phase) && lastActivityMs > 0 && now - lastActivityMs >= ABANDON_THRESHOLD_MS;
+}
+
+// The hub reuses the PIN when a session is re-run, so the doc may belong to an earlier hosted session.
+export function isFromEarlierSession(session: Session | null, hostedSessionId: string | null | undefined, now: number): boolean {
+  if (!session || !hostedSessionId) return false;
+  if (session.hostedSessionId) return session.hostedSessionId !== hostedSessionId;
+  const lastActivity = Math.max(
+    timestampMillis(session.lastActivity),
+    timestampMillis(session.updatedAt),
+    timestampMillis(session.createdAt)
+  );
+  return (
+    session.phase === 'ended' ||
+    !!session.abandoned ||
+    isLobbyIdleExpired(session.phase, timestampMillis(session.createdAt), now) ||
+    isAbandonedInProgress(session.phase, lastActivity, now)
+  );
 }
