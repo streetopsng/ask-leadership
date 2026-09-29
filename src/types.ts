@@ -43,6 +43,8 @@ export interface Session {
   mode?: SessionMode;
   createdAt?: unknown;
   updatedAt?: unknown;
+  lastActivity?: unknown;
+  abandoned?: boolean;
 }
 
 // ── Questions ────────────────────────────────────────────────────────
@@ -126,6 +128,7 @@ export interface SessionContextValue {
   me: Me;
   toasts: Toast[];
   presenceCount: number;
+  sessionExpired: 'lobby' | 'game' | null;
   questionSubmitLocked: boolean;
   questionSubmitCooldownMs: number;
   showToast: (msg: string, action?: Toast['action']) => void;

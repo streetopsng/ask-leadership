@@ -13,6 +13,7 @@ import ToastStack from './components/common/ToastStack';
 import RoleSwitcher from './components/common/RoleSwitcher';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import InitializationFallback from './components/common/InitializationFallback';
+import SessionExpiredModal from './components/common/SessionExpiredModal';
 
 function GummyGumLockedScreen() {
   return (
@@ -76,7 +77,7 @@ function MainApp() {
 }
 
 function SessionViews() {
-  const { view, syncError } = useSession();
+  const { view, syncError, sessionExpired, session, uid, ggSession } = useSession();
 
   if (syncError) throw syncError;
 
@@ -110,6 +111,13 @@ function SessionViews() {
   return (
     <>
       {renderView()}
+      {sessionExpired && (
+        <SessionExpiredModal
+          isHost={!!session?.hostUid && session.hostUid === uid}
+          context={sessionExpired}
+          hubUrl={ggSession?.hubUrl ?? null}
+        />
+      )}
       <ToastStack />
       <RoleSwitcher />
     </>

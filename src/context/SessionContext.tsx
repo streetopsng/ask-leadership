@@ -12,12 +12,16 @@ import {
   updateFirestoreSessionPhase,
   resetQuestionVotes,
   deleteFirestoreQuestion,
+  isFirestoreSessionAbandoned,
+  touchFirestoreSession,
+  markFirestoreSessionAbandoned,
 } from '../firebase/sessionService';
-import { applyQuestionSnapshot, withMine } from './sessionModel';
+import { applyQuestionSnapshot, isLobbyIdleExpired, withMine } from './sessionModel';
+import { timestampMillis } from '../lib/timestamps';
 import { goOnline, goOffline, subscribeToPresence } from '../firebase/presence';
 import { AVATARS } from '../constants/avatars';
 import { SAMPLE_QUESTIONS } from '../constants/seedData';
-import { resolveGummyGumLaunch, reportGummyGumResult, type GummyGumLaunchSession } from '../lib/gummygumSession';
+import { resolveGummyGumLaunch, reportGummyGumCancel, reportGummyGumResult, type GummyGumLaunchSession } from '../lib/gummygumSession';
 import type { Session, Question, Me, Toast, ViewName, SessionConfig, SessionContextValue, GgAccessState } from '../types';
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -34,6 +38,8 @@ function generateSessionCode(): string {
   }
   return `AL-${code}${code2}`;
 }
+
+const HEARTBEAT_INTERVAL_MS = 60 * 1000;
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -223,6 +229,75 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       unsubscribe();
     };
   }, [session?.id, uid_, isSyncEnabled, syncRevision]);
+
+  const isHost = !!session?.hostUid && session.hostUid === uid_;
+
+  // Checked once per session, before the host heartbeat starts, so a returning host can't mask abandonment.
+  const [abandonCheck, setAbandonCheck] = useState<{ id: string; abandoned: boolean } | null>(null);
+  const abandonCheckedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const sessionId = session?.id;
+    if (!sessionId || !uid_ || !isSyncEnabled || abandonCheckedRef.current === sessionId) return;
+    abandonCheckedRef.current = sessionId;
+    (async () => {
+      let abandoned = false;
+      try {
+        abandoned = await isFirestoreSessionAbandoned(sessionId);
+      } catch (err) {
+        console.error('Abandoned-session check failed:', err);
+      }
+      setAbandonCheck({ id: sessionId, abandoned });
+    })();
+  }, [session?.id, uid_, isSyncEnabled]);
+
+  const isAbandoned =
+    !!session?.abandoned || (!!abandonCheck && abandonCheck.id === session?.id && abandonCheck.abandoned);
+  const abandonCheckPassed = !!abandonCheck && abandonCheck.id === session?.id && !abandonCheck.abandoned;
+
+  useEffect(() => {
+    const sessionId = session?.id;
+    if (!sessionId || !isHost || !abandonCheckPassed || isAbandoned || !isSyncEnabled) return;
+    const beat = async () => {
+      try {
+        await touchFirestoreSession(sessionId);
+      } catch {
+        // next beat retries
+      }
+    };
+    void beat();
+    const timer = window.setInterval(() => void beat(), HEARTBEAT_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [session?.id, isHost, abandonCheckPassed, isAbandoned, isSyncEnabled]);
+
+  // Host persists the flag for everyone and reports the session to GummyGum as cancelled, once.
+  const abandonHandledRef = useRef(false);
+  useEffect(() => {
+    const sessionId = session?.id;
+    if (!sessionId || !isAbandoned || !isHost || abandonHandledRef.current) return;
+    abandonHandledRef.current = true;
+    if (!session?.abandoned) {
+      void (async () => {
+        try {
+          await markFirestoreSessionAbandoned(sessionId);
+        } catch (err) {
+          console.error('Could not mark session abandoned:', err);
+        }
+      })();
+    }
+    if (ggSession?.isHost) void reportGummyGumCancel();
+  }, [session?.id, session?.abandoned, isAbandoned, isHost, ggSession]);
+
+  const [lobbyNow, setLobbyNow] = useState(() => Date.now());
+  const sessionPhase = session?.phase;
+  const createdAtMs = timestampMillis(session?.createdAt);
+  useEffect(() => {
+    if (!isSyncEnabled || sessionPhase !== 'setup' || !createdAtMs) return;
+    const timer = window.setInterval(() => setLobbyNow(Date.now()), 10_000);
+    return () => window.clearInterval(timer);
+  }, [isSyncEnabled, sessionPhase, createdAtMs]);
+  const lobbyExpired = isSyncEnabled && isLobbyIdleExpired(sessionPhase, createdAtMs, lobbyNow);
+
+  const sessionExpired: 'lobby' | 'game' | null = isAbandoned ? 'game' : lobbyExpired ? 'lobby' : null;
 
   const showToast = useCallback((msg: string, action?: Toast['action']) => {
     const id = uid();
@@ -628,6 +703,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     me,
     toasts,
     presenceCount,
+    sessionExpired,
     questionSubmitLocked,
     questionSubmitCooldownMs,
     showToast,
