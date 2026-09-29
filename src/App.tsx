@@ -35,6 +35,8 @@ function GummyGumLockedScreen() {
 function MainApp() {
   const {
     ggAccessState,
+    ggSession,
+    sessionEnded,
     authStatus,
     syncStatus,
     restartDemo,
@@ -49,6 +51,18 @@ function MainApp() {
 
   if (ggAccessState === 'denied') {
     return <GummyGumLockedScreen />;
+  }
+
+  if (sessionEnded) {
+    return (
+      <div className="min-h-screen w-full bg-cream">
+        <SessionExpiredModal
+          isHost={!!ggSession?.isHost}
+          context={sessionEnded}
+          hubUrl={ggSession?.hubUrl ?? null}
+        />
+      </div>
+    );
   }
 
   if (authStatus === 'signingIn') {

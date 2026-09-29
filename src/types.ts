@@ -45,6 +45,7 @@ export interface Session {
   updatedAt?: unknown;
   lastActivity?: unknown;
   abandoned?: boolean;
+  cancelled?: boolean;
   hostedSessionId?: string | null;
 }
 
@@ -130,6 +131,7 @@ export interface SessionContextValue {
   toasts: Toast[];
   presenceCount: number;
   sessionExpired: 'lobby' | 'game' | null;
+  sessionEnded: 'ended' | 'completed' | null;
   questionSubmitLocked: boolean;
   questionSubmitCooldownMs: number;
   showToast: (msg: string, action?: Toast['action']) => void;
@@ -156,6 +158,7 @@ export interface SessionContextValue {
   markAnswered: () => Promise<void>;
   nextQuestion: () => Promise<void>;
   endSession: () => Promise<void>;
+  cancelSessionForAll: () => Promise<void>;
   restartDemo: () => void;
   switchRole: (role: 'host' | 'employee') => void;
 }

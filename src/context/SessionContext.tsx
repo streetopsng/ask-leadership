@@ -22,7 +22,7 @@ import { timestampMillis } from '../lib/timestamps';
 import { goOnline, goOffline, subscribeToPresence } from '../firebase/presence';
 import { AVATARS } from '../constants/avatars';
 import { SAMPLE_QUESTIONS } from '../constants/seedData';
-import { resolveGummyGumLaunch, reportGummyGumCancel, reportGummyGumResult, type GummyGumLaunchSession } from '../lib/gummygumSession';
+import { resolveGummyGumLaunch, reportGummyGumCancel, reportGummyGumResult, returnToGummyGum, watchHubSessionStatus, type GummyGumLaunchSession } from '../lib/gummygumSession';
 import type { Session, Question, Me, Toast, ViewName, SessionConfig, SessionContextValue, GgAccessState } from '../types';
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -300,6 +300,43 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const lobbyExpired = isSyncEnabled && isLobbyIdleExpired(sessionPhase, createdAtMs, lobbyNow);
 
   const sessionExpired: 'lobby' | 'game' | null = isAbandoned ? 'game' : lobbyExpired ? 'lobby' : null;
+
+  const [hubEnded, setHubEnded] = useState(false);
+  const hubPin = ggSession?.roomCode ?? null;
+  const hubHostedSessionId = ggSession?.hostedSessionId ?? null;
+  // An in-app end reports its own result, which also ends the hub session; keep the closing screen.
+  const watchHub = !!hubPin && !!hubHostedSessionId && isSyncEnabled && !hubEnded && !sessionExpired && sessionPhase !== 'ended';
+  useEffect(() => {
+    if (!watchHub || !hubPin || !hubHostedSessionId) return;
+    return watchHubSessionStatus({ pin: hubPin, hostedSessionId: hubHostedSessionId, onEnded: () => setHubEnded(true) });
+  }, [watchHub, hubPin, hubHostedSessionId]);
+
+  const sessionEnded: 'ended' | 'completed' | null = !ggSession
+    ? null
+    : hubEnded || session?.cancelled
+      ? 'ended'
+      : sessionPhase === 'ended' && !isHost
+        ? 'completed'
+        : null;
+
+  // The session is already closed on the hub, so the host leaves without reporting cancel again.
+  const endHandledRef = useRef(false);
+  useEffect(() => {
+    const sessionId = session?.id;
+    if (sessionEnded !== 'ended' || !ggSession?.isHost || endHandledRef.current) return;
+    endHandledRef.current = true;
+    const hubUrl = ggSession.hubUrl;
+    void (async () => {
+      if (sessionId && uid_ && isHost && !session?.cancelled && isSyncEnabled) {
+        try {
+          await updateFirestoreSessionPhase(sessionId, uid_, { phase: 'ended', cancelled: true });
+        } catch (err) {
+          console.error('Could not mark session ended:', err);
+        }
+      }
+      returnToGummyGum(hubUrl);
+    })();
+  }, [sessionEnded, ggSession, session?.id, session?.cancelled, uid_, isHost, isSyncEnabled]);
 
   const showToast = useCallback((msg: string, action?: Toast['action']) => {
     const id = uid();
@@ -691,6 +728,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'ended', expireAt: sessionExpiry }));
   };
 
+  const cancelSessionForAll = async () => {
+    if (!session?.id || !uid_) return;
+    // The caller navigates to the hub once this write lands; don't race it from the ended effect.
+    endHandledRef.current = true;
+    await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'ended', cancelled: true }));
+  };
+
   const restartDemo = () => {
     setSyncError(null);
     setSession(null);
@@ -740,6 +784,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     toasts,
     presenceCount,
     sessionExpired,
+    sessionEnded,
     questionSubmitLocked,
     questionSubmitCooldownMs,
     showToast,
@@ -766,6 +811,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     markAnswered,
     nextQuestion,
     endSession,
+    cancelSessionForAll,
     restartDemo,
     switchRole,
   };

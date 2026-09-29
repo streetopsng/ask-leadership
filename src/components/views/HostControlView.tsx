@@ -25,6 +25,7 @@ export default function HostControlView() {
     markAnswered,
     nextQuestion,
     endSession,
+    cancelSessionForAll,
     removeQuestion,
     restartDemo,
     presenceCount,
@@ -183,7 +184,8 @@ export default function HostControlView() {
                   onClick={async () => {
                     setShowCancelModal(false);
                     await reportGummyGumCancel();
-                    returnToGummyGum();
+                    await cancelSessionForAll();
+                    returnToGummyGum(ggSession?.hubUrl);
                   }}
                 >
                   Exit to hub
