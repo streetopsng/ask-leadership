@@ -47,8 +47,10 @@ function rateLimitRef(sessionId: string, uid: string) {
   return doc(db!, SESSIONS, sessionId, 'rate_limits', uid);
 }
 
-function voteRef(sessionId: string, round: number, uid: string) {
-  return doc(db!, SESSIONS, sessionId, 'votes', `${round}_${uid}`);
+// Votes can't be deleted (rules), so a re-run of the same PIN keys them by hosted session to start clean.
+function voteRef(sessionId: string, round: number, uid: string, hostedSessionId?: string | null) {
+  const suffix = hostedSessionId ? `_${hostedSessionId}` : '';
+  return doc(db!, SESSIONS, sessionId, 'votes', `${round}_${uid}${suffix}`);
 }
 
 async function isQuestionRateLimited(sessionId: string, participantUid: string): Promise<boolean> {
@@ -68,12 +70,14 @@ async function isQuestionRateLimited(sessionId: string, participantUid: string):
 export async function createFirestoreSession(
   sessionId: string,
   hostUid: string,
-  config: SessionConfig
+  config: SessionConfig,
+  hostedSessionId: string | null = null
 ): Promise<string | null> {
   if (!isFirebaseConfigured()) return null;
 
   await setDoc(sessionRef(sessionId), {
     hostUid,
+    ...(hostedSessionId ? { hostedSessionId } : {}),
     phase: 'setup',
     round: 1,
     currentQuestionId: null,
@@ -84,6 +88,20 @@ export async function createFirestoreSession(
   });
 
   return sessionId;
+}
+
+/**
+ * Host-only (rules): removes an earlier run's questions after the session doc is reset for a new hosted session.
+ */
+export async function clearFirestoreQuestions(sessionId: string): Promise<void> {
+  if (!isFirebaseConfigured()) return;
+
+  const snapshot: QuerySnapshot<DocumentData> = await getDocs(collection(db!, SESSIONS, sessionId, 'questions'));
+  for (let i = 0; i < snapshot.docs.length; i += 450) {
+    const batch = writeBatch(db!);
+    snapshot.docs.slice(i, i + 450).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
 }
 
 /**
@@ -151,12 +169,13 @@ export function subscribeToMyVote(
   round: number,
   uid: string,
   onUpdate: (marker: VoteMarker | null) => void,
-  onError: (err: Error) => void
+  onError: (err: Error) => void,
+  hostedSessionId?: string | null
 ): () => void {
   if (!isFirebaseConfigured() || !sessionId || !round || !uid) return () => {};
 
   return onSnapshot(
-    voteRef(sessionId, round, uid),
+    voteRef(sessionId, round, uid, hostedSessionId),
     (snapshot: DocumentSnapshot<DocumentData>) => {
       onUpdate(snapshot.exists() ? { votedFor: snapshot.data()!.votedFor } as VoteMarker : null);
     },
@@ -218,11 +237,12 @@ export async function voteFirestoreQuestion(
   sessionId: string,
   questionId: string,
   round: number,
-  participantUid: string
+  participantUid: string,
+  hostedSessionId?: string | null
 ): Promise<boolean> {
   if (!isFirebaseConfigured()) return false;
 
-  const marker = voteRef(sessionId, round, participantUid);
+  const marker = voteRef(sessionId, round, participantUid, hostedSessionId);
   const qRef = questionRef(sessionId, questionId);
 
   try {

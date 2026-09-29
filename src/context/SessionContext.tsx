@@ -15,8 +15,9 @@ import {
   isFirestoreSessionAbandoned,
   touchFirestoreSession,
   markFirestoreSessionAbandoned,
+  clearFirestoreQuestions,
 } from '../firebase/sessionService';
-import { applyQuestionSnapshot, isLobbyIdleExpired, withMine } from './sessionModel';
+import { applyQuestionSnapshot, isFromEarlierSession, isLobbyIdleExpired, withMine } from './sessionModel';
 import { timestampMillis } from '../lib/timestamps';
 import { goOnline, goOffline, subscribeToPresence } from '../firebase/presence';
 import { AVATARS } from '../constants/avatars';
@@ -208,12 +209,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           votedThisRound: !!marker,
           justVotedId: marker ? marker.votedFor : null,
         })),
-      handleListenerError
+      handleListenerError,
+      session.hostedSessionId
     );
     unsubMyVoteRef.current = unsubscribe;
 
     return unsubscribe;
-  }, [session?.id, session?.round, uid_, isSyncEnabled, handleListenerError, syncRevision]);
+  }, [session?.id, session?.round, session?.hostedSessionId, uid_, isSyncEnabled, handleListenerError, syncRevision]);
 
   // Subscribe to presence
   useEffect(() => {
@@ -452,16 +454,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async (gg: GummyGumLaunchSession) => {
       const code = gg.roomCode;
       if (!code) return;
-      const cfg: SessionConfig = { ...DRAFT_CONFIG, ...((gg.config as Partial<SessionConfig> | null) ?? {}) };
+      let cfg: SessionConfig = { ...DRAFT_CONFIG, ...((gg.config as Partial<SessionConfig> | null) ?? {}) };
+      const hostedSessionId = gg.hostedSessionId ?? null;
+      let replacing = false;
 
       if (isSyncEnabled) {
         try {
           const existing = await getFirestoreSession(code);
-          if (existing) {
+          // A session this same hosted session ended stays ended, so a duplicate tab can't resurrect it.
+          if (existing && !isFromEarlierSession(existing, hostedSessionId, Date.now())) {
+            if (hostedSessionId && !existing.hostedSessionId && existing.hostUid === uid_) {
+              existing.hostedSessionId = hostedSessionId;
+              await updateFirestoreSessionPhase(code, uid_!, { hostedSessionId });
+            }
             setSession(existing);
             setQuestions([]);
             setView(existing.phase === 'ended' ? 'closing' : 'hostControl');
             return;
+          }
+          if (existing) {
+            replacing = true;
+            if (!gg.config) cfg = existing.config;
           }
         } catch {
           // fall through to create a fresh room below
@@ -475,11 +488,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         round: 1,
         currentQuestionId: null,
         config: cfg,
+        hostedSessionId,
       };
       setSession(newSession);
       setQuestions([]);
       setView('hostControl');
-      await syncToFirestore(() => createFirestoreSession(code, uid_!, cfg));
+      await syncToFirestore(async () => {
+        await createFirestoreSession(code, uid_!, cfg, hostedSessionId);
+        // After the doc write, since the rules check the session doc's hostUid before allowing deletes.
+        if (replacing) await clearFirestoreQuestions(code);
+      });
     },
     [uid_, isSyncEnabled, syncToFirestore]
   );
@@ -493,9 +511,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (ggSession.isHost) {
       void beginGummyGumHostSession(ggSession);
     } else if (ggSession.roomCode) {
-      void joinSession(ggSession.roomCode);
+      const code = ggSession.roomCode;
+      const hostedSessionId = ggSession.hostedSessionId;
+      if (!hostedSessionId || !isSyncEnabled) {
+        void joinSession(code);
+        return;
+      }
+      // Wait for the host to create or reset the reused PIN's session for this hosted session.
+      setSyncStatus('syncing');
+      let joined = false;
+      const unsubscribe = subscribeToFirestoreSession(
+        code,
+        (remote) => {
+          if (joined || isFromEarlierSession(remote, hostedSessionId, Date.now())) return;
+          joined = true;
+          unsubscribe();
+          void joinSession(code);
+        },
+        handleListenerError
+      );
     }
-  }, [ggAccessState, ggSession, uid_, authStatus, beginGummyGumHostSession, joinSession]);
+  }, [ggAccessState, ggSession, uid_, authStatus, beginGummyGumHostSession, joinSession, isSyncEnabled, handleListenerError]);
 
   const chooseAvatar = (avatarId: string) => {
     setMe((prev) => ({ ...prev, avatar: avatarId }));
@@ -598,7 +634,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
 
     setMe((prev) => ({ ...prev, votedThisRound: true, justVotedId: qid }));
-    const ok = await syncToFirestore(() => voteFirestoreQuestion(session!.id!, qid, session!.round, uid_!));
+    const ok = await syncToFirestore(() => voteFirestoreQuestion(session!.id!, qid, session!.round, uid_!, session!.hostedSessionId));
     if (ok === false) {
       showToast('You already voted this round.');
       setMe((prev) => (prev.justVotedId === qid ? { ...prev, votedThisRound: false, justVotedId: null } : prev));
