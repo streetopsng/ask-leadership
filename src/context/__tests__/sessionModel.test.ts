@@ -36,7 +36,7 @@ describe('normalizeQuestion', () => {
       text: '',
       votes: 0,
       answered: false,
-      avatarId: 'panda',
+      avatarId: 'av-1',
       participantUid: null,
     });
   });

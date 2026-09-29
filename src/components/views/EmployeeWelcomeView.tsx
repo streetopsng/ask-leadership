@@ -3,19 +3,26 @@ import Button from '../common/Button';
 import Waveform from '../common/Waveform';
 
 export default function EmployeeWelcomeView() {
-  const { setView } = useSession();
+  const { setView, ggSession } = useSession();
 
   return (
     <div className="min-h-screen flex flex-col bg-cream">
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-5 border-b-[2.5px] border-ink bg-white">
-        <button
-          type="button"
-          onClick={() => setView('landing')}
-          className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider font-bold text-ink hover:text-purple-deep cursor-pointer"
-        >
-          ← Back
-        </button>
+        {ggSession ? (
+          <div className="w-14" />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setView('landing')}
+            className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider font-bold text-ink hover:text-purple-deep cursor-pointer"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
+        )}
         <div className="font-mono text-xs uppercase tracking-wider font-bold text-purple-deep">
           Ask Leadership
         </div>

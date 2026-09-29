@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { SessionProvider, useSession } from './context/SessionContext';
+import { isFirebaseConfigured, missingFirebaseEnvVars } from './firebase/config';
 import LandingView from './components/views/LandingView';
 import HostSetupView from './components/views/HostSetupView';
 import HostReadyView from './components/views/HostReadyView';
@@ -14,6 +16,10 @@ import RoleSwitcher from './components/common/RoleSwitcher';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import InitializationFallback from './components/common/InitializationFallback';
 import SessionExpiredModal from './components/common/SessionExpiredModal';
+import type { ViewName } from './types';
+
+const HOST_VIEWS: ViewName[] = ['hostSetup', 'hostReady', 'hostControl', 'dashboard', 'closing'];
+const PARTICIPANT_VIEWS: ViewName[] = ['employeeInvite', 'employeeWelcome', 'avatarSelect', 'room', 'closing'];
 
 function GummyGumLockedScreen() {
   return (
@@ -26,6 +32,30 @@ function GummyGumLockedScreen() {
           className="inline-flex items-center justify-center gap-2 rounded-full border-[2.5px] border-ink font-bold font-body bg-gold text-ink px-7 py-3.5 shadow-hard-md"
         >
           Go to GummyGum
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// A GummyGum launch without Firebase would silently run local-only, so the host would never see anyone join.
+function NotSetUpScreen() {
+  useEffect(() => {
+    console.error(`Ask Leadership: Firebase is not configured. Missing env vars: ${missingFirebaseEnvVars().join(', ') || 'none'}`);
+  }, []);
+
+  return (
+    <div className="min-h-screen w-full bg-cream text-ink flex items-center justify-center px-6">
+      <div className="max-w-sm w-full text-center space-y-4 bg-white border-[2.5px] border-ink rounded-3xl p-8">
+        <h1 className="font-display font-bold text-xl text-ink">This experience isn't fully set up yet</h1>
+        <p className="text-muted-ink text-sm font-semibold">
+          Live sync is not configured for Ask Leadership, so it can't run a session right now. Please let your GummyGum admin know.
+        </p>
+        <a
+          href="https://gummygum.app"
+          className="inline-flex items-center justify-center gap-2 rounded-full border-[2.5px] border-ink font-bold font-body bg-gold text-ink px-7 py-3.5"
+        >
+          Back to GummyGum
         </a>
       </div>
     </div>
@@ -51,6 +81,10 @@ function MainApp() {
 
   if (ggAccessState === 'denied') {
     return <GummyGumLockedScreen />;
+  }
+
+  if (ggSession && !isFirebaseConfigured()) {
+    return <NotSetUpScreen />;
   }
 
   if (sessionEnded) {
@@ -91,9 +125,14 @@ function MainApp() {
 }
 
 function SessionViews() {
-  const { view, syncError, sessionExpired, session, uid, ggSession } = useSession();
+  const { view, syncError, sessionExpired, session, uid, ggSession, retryJoin } = useSession();
 
   if (syncError) throw syncError;
+
+  // GummyGum sets the role; never render the other role's screens (or the standalone landing) while routing.
+  if (ggSession && !(ggSession.isHost ? HOST_VIEWS : PARTICIPANT_VIEWS).includes(view)) {
+    return <InitializationFallback state="joining" onRetry={retryJoin} />;
+  }
 
   const renderView = () => {
     switch (view) {

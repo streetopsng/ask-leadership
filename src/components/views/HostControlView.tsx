@@ -124,6 +124,10 @@ export default function HostControlView() {
             <Button variant="ghost" fullWidth onClick={endSession}>
               End session
             </Button>
+          ) : ggSession ? (
+            <Button variant="ghost" fullWidth onClick={() => returnToGummyGum(ggSession.hubUrl)}>
+              Back to GummyGum
+            </Button>
           ) : (
             <Button variant="ghost" fullWidth onClick={restartDemo}>
               Start a new session

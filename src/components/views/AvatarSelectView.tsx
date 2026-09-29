@@ -1,43 +1,35 @@
 import { useSession } from '../../context/SessionContext';
-import { AVATARS } from '../../constants/avatars';
+import { AVATAR_IDS, avatarUrl } from '../../lib/avatars';
 import Button from '../common/Button';
 import { MicIcon } from '../../constants/icons';
 
-const AVATAR_BG_CLASSES: Record<string, string> = {
-  panda: 'bg-[#EDE4F5]',
-  fox: 'bg-[#E3A6C7]',
-  octopus: 'bg-[#B79BDD]',
-  lion: 'bg-[#F0C55E]',
-  frog: 'bg-[#7FC79E]',
-  koala: 'bg-[#A9A0DE]',
-  tiger: 'bg-[#E0A94A]',
-  bear: 'bg-[#A8D9BC]',
-  unicorn: 'bg-[#E7B8DD]',
-  monkey: 'bg-[#E0C67A]',
-};
-
 export default function AvatarSelectView() {
-  const { me, chooseAvatar, confirmEnterRoom, setView } = useSession();
+  const { me, chooseAvatar, confirmEnterRoom, setView, ggSession } = useSession();
   const chosen = me.avatar;
 
   return (
     <div className="min-h-screen flex flex-col bg-cream">
-      {/* Header */}
       <header className="flex items-center justify-between px-6 py-5 border-b-[2.5px] border-ink bg-white">
-        <button
-          type="button"
-          onClick={() => setView('employeeWelcome')}
-          className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider font-bold text-ink hover:text-purple-deep cursor-pointer"
-        >
-          ← Back
-        </button>
+        {ggSession ? (
+          <div className="w-14" />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setView('employeeWelcome')}
+            className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider font-bold text-ink hover:text-purple-deep cursor-pointer"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
+        )}
         <div className="font-mono text-xs uppercase tracking-wider font-bold text-purple-deep">
           Ask Leadership
         </div>
         <div className="w-14" />
       </header>
 
-      {/* Body */}
       <main className="flex-1 px-6 py-10 max-w-xl mx-auto w-full">
         <div className="text-center mb-8 animate-rise">
           <h2 className="font-display font-black text-3xl sm:text-4xl text-ink uppercase tracking-tight">
@@ -48,28 +40,26 @@ export default function AvatarSelectView() {
           </p>
         </div>
 
-        {/* Avatars Grid */}
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 sm:gap-4 max-w-sm sm:max-w-lg mx-auto">
-          {AVATARS.map((a) => {
-            const isSelected = chosen === a.id;
-            const bgClass = AVATAR_BG_CLASSES[a.id] || 'bg-[#EDE4F5]';
+        <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 sm:gap-4 max-w-sm sm:max-w-lg mx-auto">
+          {AVATAR_IDS.map((id, idx) => {
+            const isSelected = chosen === id;
             return (
               <button
-                key={a.id}
+                key={id}
                 type="button"
-                onClick={() => chooseAvatar(a.id)}
-                className={`relative aspect-square rounded-full border-[2.5px] border-ink flex items-center justify-center text-2xl sm:text-3xl cursor-pointer transition-all duration-150 ${bgClass} ${
-                  isSelected
-                    ? 'shadow-hard-purple-lg -translate-x-1 -translate-y-1'
-                    : 'shadow-hard-sm hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard-md'
+                onClick={() => chooseAvatar(id)}
+                className={`relative aspect-square rounded-full border-[2.5px] cursor-pointer transition-colors duration-150 bg-white ${
+                  isSelected ? 'border-purple-deep ring-2 ring-brand-purple' : 'border-line hover:border-ink'
                 }`}
-                aria-label={`Choose ${a.name} avatar`}
+                aria-label={`Choose avatar ${idx + 1}`}
                 aria-pressed={isSelected}
               >
-                <span>{a.emoji}</span>
+                <img src={avatarUrl(id)} alt="" draggable={false} className="w-full h-full rounded-full object-cover" />
                 {isSelected && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-sage text-ink w-6 h-6 rounded-full flex items-center justify-center text-xs font-black border-2 border-ink shadow-hard-sm">
-                    ✓
+                  <span className="absolute -top-1 -right-1 bg-sage text-white w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.5} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
                   </span>
                 )}
               </button>
@@ -77,27 +67,19 @@ export default function AvatarSelectView() {
           })}
         </div>
 
-        {/* Safety Note */}
         <div className="flex items-center justify-center gap-2 mt-8 text-sage-deep font-mono text-xs uppercase tracking-wider font-bold">
           <MicIcon className="w-4 h-4" />
           <span>Anonymous by design</span>
         </div>
-
-        {/* Confirm Button */}
-        {chosen && (
-          <div className="text-center mt-8 animate-rise">
-            <p className="font-mono text-xs uppercase tracking-wider font-bold text-purple-deep mb-2">
-              You're in.
-            </p>
-            <Button
-              variant="primary"
-              onClick={confirmEnterRoom}
-            >
-              Enter the room
-            </Button>
-          </div>
-        )}
       </main>
+
+      <footer className="sticky bottom-0 border-t-[2.5px] border-ink bg-white px-6 py-4">
+        <div className="max-w-xl mx-auto">
+          <Button variant="primary" fullWidth disabled={!chosen} onClick={confirmEnterRoom}>
+            {chosen ? 'Enter the room' : 'Pick an avatar to continue'}
+          </Button>
+        </div>
+      </footer>
     </div>
   );
 }

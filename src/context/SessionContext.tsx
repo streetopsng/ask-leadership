@@ -20,7 +20,7 @@ import {
 import { applyQuestionSnapshot, isFromEarlierSession, isLobbyIdleExpired, withMine } from './sessionModel';
 import { timestampMillis } from '../lib/timestamps';
 import { goOnline, goOffline, subscribeToPresence } from '../firebase/presence';
-import { AVATARS } from '../constants/avatars';
+import { AVATAR_IDS, DEFAULT_AVATAR_ID } from '../lib/avatars';
 import { SAMPLE_QUESTIONS } from '../constants/seedData';
 import { resolveGummyGumLaunch, reportGummyGumCancel, reportGummyGumResult, returnToGummyGum, watchHubSessionStatus, type GummyGumLaunchSession } from '../lib/gummygumSession';
 import type { Session, Question, Me, Toast, ViewName, SessionConfig, SessionContextValue, GgAccessState } from '../types';
@@ -61,7 +61,7 @@ function getSeedQuestions(): Question[] {
   return shuffled.slice(0, 4).map((text, idx) => ({
     id: uid(),
     text,
-    avatarId: AVATARS[idx % AVATARS.length].id,
+    avatarId: AVATAR_IDS[idx % AVATAR_IDS.length],
     votes: 0,
     answered: false,
     participantUid: null,
@@ -542,7 +542,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // Route a resolved GummyGum launch into the right flow: host resumes/creates
   // the room, participant joins it directly by the hub's room code.
   useEffect(() => {
-    if (ggRoutedRef.current) return;
+    if (ggRoutedRef.current || !isFirebaseConfigured()) return;
     if (ggAccessState !== 'granted' || !ggSession || !uid_ || authStatus !== 'signedIn') return;
     ggRoutedRef.current = true;
     if (ggSession.isHost) {
@@ -599,7 +599,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const newQ: Question = {
       id: uid(),
       text: trimmed,
-      avatarId: me.avatar ?? 'panda',
+      avatarId: me.avatar ?? DEFAULT_AVATAR_ID,
       votes: 0,
       answered: false,
       participantUid: uid_,
@@ -747,6 +747,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const switchRole = useCallback(
     (role: 'host' | 'employee') => {
+      if (ggSession) return;
       setDemoRole(role);
       if (role === 'host') {
         if (session) setView('hostControl');
@@ -757,7 +758,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         else setView('employeeWelcome');
       }
     },
-    [session, me.joined, me.avatar, beginHostSetup]
+    [session, me.joined, me.avatar, beginHostSetup, ggSession]
   );
 
   const value: SessionContextValue = {

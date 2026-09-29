@@ -1,13 +1,5 @@
 // Shared domain types for Ask Leadership.
 
-// ── Avatars ──────────────────────────────────────────────────────────
-export interface Avatar {
-  id: string;
-  emoji: string;
-  color: string;
-  name: string;
-}
-
 // ── Session ──────────────────────────────────────────────────────────
 export type SessionPhase =
   | 'setup'
