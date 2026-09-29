@@ -1,4 +1,4 @@
-import type { Question } from '../types';
+import type { Question, SessionPhase } from '../types';
 
 /**
  * Pure helpers for shaping questions in the session state.
@@ -41,4 +41,18 @@ export function applyQuestionSnapshot(prev: Question[], incoming: Question[]): Q
   const incomingById = new Map(incoming.map((q) => [q.id, q]));
   const pending = prev.filter((q) => q.pending && !incomingById.has(q.id));
   return [...pending, ...incoming.map((q) => incomingById.get(q.id)!)];
+}
+
+export const LOBBY_IDLE_MS = 20 * 60 * 1000;
+// Hours, not the lobby's 20 min: a slow live Q&A must never be cut off.
+export const ABANDON_THRESHOLD_MS = 3 * 60 * 60 * 1000;
+
+const IN_PROGRESS_PHASES: SessionPhase[] = ['submitting', 'closed', 'voting', 'winner', 'answering', 'followup'];
+
+export function isLobbyIdleExpired(phase: SessionPhase | undefined, createdAtMs: number, now: number): boolean {
+  return phase === 'setup' && createdAtMs > 0 && now - createdAtMs >= LOBBY_IDLE_MS;
+}
+
+export function isAbandonedInProgress(phase: SessionPhase | undefined, lastActivityMs: number, now: number): boolean {
+  return !!phase && IN_PROGRESS_PHASES.includes(phase) && lastActivityMs > 0 && now - lastActivityMs >= ABANDON_THRESHOLD_MS;
 }

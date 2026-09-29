@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeQuestion, withMine, applyQuestionSnapshot } from '../sessionModel';
+import {
+  normalizeQuestion,
+  withMine,
+  applyQuestionSnapshot,
+  isLobbyIdleExpired,
+  isAbandonedInProgress,
+  LOBBY_IDLE_MS,
+  ABANDON_THRESHOLD_MS,
+} from '../sessionModel';
 
 describe('normalizeQuestion', () => {
   it('maps a raw Firestore question doc into the client shape', () => {
@@ -95,5 +103,23 @@ describe('applyQuestionSnapshot', () => {
     const prev = [normalizeQuestion({ id: 'removed', text: 'moderated' })];
     const result = applyQuestionSnapshot(prev, []);
     expect(result).toEqual([]);
+  });
+});
+
+describe('session expiry', () => {
+  const now = 10 * ABANDON_THRESHOLD_MS;
+
+  it('expires only a setup-phase lobby idle for 20 minutes', () => {
+    expect(isLobbyIdleExpired('setup', now - LOBBY_IDLE_MS, now)).toBe(true);
+    expect(isLobbyIdleExpired('setup', now - LOBBY_IDLE_MS + 1, now)).toBe(false);
+    expect(isLobbyIdleExpired('voting', 1, now)).toBe(false);
+    expect(isLobbyIdleExpired('setup', 0, now)).toBe(false);
+  });
+
+  it('flags only in-progress phases with no activity for the threshold', () => {
+    expect(isAbandonedInProgress('voting', now - ABANDON_THRESHOLD_MS, now)).toBe(true);
+    expect(isAbandonedInProgress('voting', now - ABANDON_THRESHOLD_MS + 1, now)).toBe(false);
+    expect(isAbandonedInProgress('setup', 1, now)).toBe(false);
+    expect(isAbandonedInProgress('ended', 1, now)).toBe(false);
   });
 });

@@ -24,6 +24,7 @@ import {
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './config';
 import { timestampMillis } from '../lib/timestamps';
+import { isAbandonedInProgress } from '../context/sessionModel';
 import type { Session, Question, VoteMarker, SessionConfig } from '../types';
 
 const SESSIONS = 'sessions';
@@ -296,6 +297,39 @@ export async function updateFirestoreSessionPhase(
   });
 
   return true;
+}
+
+/** True when mid-flow with no host heartbeat, phase change or new question for hours. */
+export async function isFirestoreSessionAbandoned(sessionId: string): Promise<boolean> {
+  if (!isFirebaseConfigured()) return false;
+
+  const snap: DocumentSnapshot<DocumentData> = await getDoc(sessionRef(sessionId));
+  if (!snap.exists()) return false;
+  const data = snap.data()!;
+  if (data.abandoned) return true;
+
+  const latest: QuerySnapshot<DocumentData> = await getDocs(
+    query(collection(db!, SESSIONS, sessionId, 'questions'), orderBy('createdAt', 'desc'), limit(1))
+  );
+  const lastActivity = Math.max(
+    timestampMillis(data.lastActivity),
+    timestampMillis(data.updatedAt),
+    timestampMillis(data.createdAt),
+    latest.docs[0] ? timestampMillis(latest.docs[0].data().createdAt) : 0
+  );
+  return isAbandonedInProgress(data.phase, lastActivity, Date.now());
+}
+
+/** Host-only (rules): liveness heartbeat so a connected host keeps the session from looking abandoned. */
+export async function touchFirestoreSession(sessionId: string): Promise<void> {
+  if (!isFirebaseConfigured()) return;
+  await updateDoc(sessionRef(sessionId), { lastActivity: serverTimestamp() });
+}
+
+/** Host-only (rules): persists the abandoned flag so every client shows the expired modal. */
+export async function markFirestoreSessionAbandoned(sessionId: string): Promise<void> {
+  if (!isFirebaseConfigured()) return;
+  await updateDoc(sessionRef(sessionId), { abandoned: true });
 }
 
 /**
