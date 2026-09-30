@@ -23,10 +23,12 @@ export function normalizeQuestion(raw: Partial<Question> & { id: string }): Ques
  * Server questions carry participantUid (matching the auth uid);
  * demo-mode questions carry an explicit `mine` instead.
  */
-export function withMine(questions: Question[], myUid: string | null): Question[] {
+export function withMine(questions: Question[], myUid: string | null, myKey: string | null = null): Question[] {
   return questions.map((q) => ({
     ...q,
-    mine: q.participantUid != null ? q.participantUid === myUid : !!q.mine,
+    mine:
+      (!!myKey && q.participantKey === myKey) ||
+      (q.participantUid != null ? q.participantUid === myUid : !!q.mine),
   }));
 }
 

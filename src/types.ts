@@ -50,6 +50,7 @@ export interface Question {
   answered: boolean;
   answeredRound?: number | null;
   participantUid: string | null;
+  participantKey?: string | null;
   mine?: boolean;
   ts?: number;
   pending?: boolean;

@@ -160,9 +160,33 @@ export function subscribeToFirestoreQuestions(
   );
 }
 
+function votesCollection(sessionId: string) {
+  return collection(db!, SESSIONS, sessionId, 'votes');
+}
+
+// Vote doc ids are `${round}_${uid}` plus `_${hostedSessionId}` on hub re-runs.
+function isVoteForRound(voteId: string, round: number, hostedSessionId?: string | null): boolean {
+  const [voteRound, , ...rest] = voteId.split('_');
+  if (voteRound !== String(round)) return false;
+  return hostedSessionId ? rest.join('_') === hostedSessionId : rest.length === 0;
+}
+
+async function hasKeyVotedThisRound(
+  sessionId: string,
+  round: number,
+  participantKey: string,
+  hostedSessionId?: string | null
+): Promise<boolean> {
+  const snapshot: QuerySnapshot<DocumentData> = await getDocs(
+    query(votesCollection(sessionId), where('participantKey', '==', participantKey))
+  );
+  return snapshot.docs.some((d) => isVoteForRound(d.id, round, hostedSessionId));
+}
+
 /**
  * Subscribes to the caller's own vote marker for the current round,
  * so a client knows whether it has voted this round and for what.
+ * With a participant key the marker may have been cast from another device.
  */
 export function subscribeToMyVote(
   sessionId: string,
@@ -170,9 +194,21 @@ export function subscribeToMyVote(
   uid: string,
   onUpdate: (marker: VoteMarker | null) => void,
   onError: (err: Error) => void,
-  hostedSessionId?: string | null
+  hostedSessionId?: string | null,
+  participantKey?: string | null
 ): () => void {
   if (!isFirebaseConfigured() || !sessionId || !round || !uid) return () => {};
+
+  if (participantKey) {
+    return onSnapshot(
+      query(votesCollection(sessionId), where('participantKey', '==', participantKey)),
+      (snapshot: QuerySnapshot<DocumentData>) => {
+        const match = snapshot.docs.find((d) => isVoteForRound(d.id, round, hostedSessionId));
+        onUpdate(match ? ({ votedFor: match.data().votedFor } as VoteMarker) : null);
+      },
+      onError
+    );
+  }
 
   return onSnapshot(
     voteRef(sessionId, round, uid, hostedSessionId),
@@ -184,12 +220,29 @@ export function subscribeToMyVote(
 }
 
 /**
+ * The avatar a keyed participant already used this run, recovered from their own question or vote.
+ */
+export async function findParticipantAvatar(sessionId: string, participantKey: string): Promise<string | null> {
+  if (!isFirebaseConfigured()) return null;
+
+  for (const sub of ['questions', 'votes']) {
+    const snapshot: QuerySnapshot<DocumentData> = await getDocs(
+      query(collection(db!, SESSIONS, sessionId, sub), where('participantKey', '==', participantKey), limit(1))
+    );
+    const avatarId = snapshot.docs[0]?.data().avatarId;
+    if (typeof avatarId === 'string' && avatarId) return avatarId;
+  }
+  return null;
+}
+
+/**
  * Submits a question to the questions subcollection.
  */
 export async function submitFirestoreQuestion(
   sessionId: string,
   participantUid: string,
-  question: Pick<Question, 'id' | 'text' | 'avatarId'>
+  question: Pick<Question, 'id' | 'text' | 'avatarId'>,
+  participantKey?: string | null
 ): Promise<boolean> {
   if (!isFirebaseConfigured()) return false;
 
@@ -208,6 +261,7 @@ export async function submitFirestoreQuestion(
       tx.set(questionRef(sessionId, question.id), {
         text: question.text,
         participantUid,
+        ...(participantKey ? { participantKey } : {}),
         avatarId: question.avatarId,
         votes: 0,
         answered: false,
@@ -238,9 +292,14 @@ export async function voteFirestoreQuestion(
   questionId: string,
   round: number,
   participantUid: string,
-  hostedSessionId?: string | null
+  hostedSessionId?: string | null,
+  participant?: { key: string; avatarId: string | null } | null
 ): Promise<boolean> {
   if (!isFirebaseConfigured()) return false;
+
+  if (participant?.key && (await hasKeyVotedThisRound(sessionId, round, participant.key, hostedSessionId))) {
+    return false;
+  }
 
   const marker = voteRef(sessionId, round, participantUid, hostedSessionId);
   const qRef = questionRef(sessionId, questionId);
@@ -250,7 +309,12 @@ export async function voteFirestoreQuestion(
       const markerSnap = await tx.get(marker);
       if (markerSnap.exists()) throw new Error('ALREADY_VOTED');
 
-      tx.set(marker, { votedFor: questionId, createdAt: serverTimestamp(), expireAt: ttlDateFromNow() });
+      tx.set(marker, {
+        votedFor: questionId,
+        ...(participant?.key ? { participantKey: participant.key, avatarId: participant.avatarId } : {}),
+        createdAt: serverTimestamp(),
+        expireAt: ttlDateFromNow(),
+      });
       tx.update(qRef, { votes: increment(1), expireAt: ttlDateFromNow() });
     });
     return true;

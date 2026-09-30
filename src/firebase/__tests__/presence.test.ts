@@ -52,4 +52,12 @@ describe('presence', () => {
       expect(ref.path).toBe('presence/AL-TEST/user-abc')
     })
   })
+
+  describe('countPresence', () => {
+    it('counts one invitee once across devices while unkeyed entries count per uid', async () => {
+      const { countPresence } = await import('../presence')
+      expect(countPresence(null)).toBe(0)
+      expect(countPresence({ a: 'k1', b: 'k1', c: true, d: true })).toBe(3)
+    })
+  })
 })

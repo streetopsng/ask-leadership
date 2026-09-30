@@ -8,11 +8,12 @@ function getDb() {
   return rtdb;
 }
 
-export async function goOnline(sessionId: string, uid: string): Promise<void> {
+// A keyed participant writes their key so several devices for one invitee count once.
+export async function goOnline(sessionId: string, uid: string, participantKey?: string | null): Promise<void> {
   if (!isFirebaseConfigured()) return;
 
   const presenceRef: DatabaseReference = ref(getDb(), `presence/${sessionId}/${uid}`);
-  await set(presenceRef, true);
+  await set(presenceRef, participantKey || true);
   await onDisconnect(presenceRef).remove();
 }
 
@@ -28,8 +29,11 @@ export function subscribeToPresence(sessionId: string, onUpdate: (count: number)
 
   const presenceRef: DatabaseReference = ref(getDb(), `presence/${sessionId}`);
   return onValue(presenceRef, (snapshot) => {
-    const data = snapshot.val() as Record<string, boolean> | null;
-    const count = data ? Object.keys(data).length : 0;
-    onUpdate(count);
+    onUpdate(countPresence(snapshot.val() as Record<string, unknown> | null));
   });
+}
+
+export function countPresence(data: Record<string, unknown> | null): number {
+  if (!data) return 0;
+  return new Set(Object.entries(data).map(([uid, value]) => (typeof value === 'string' && value ? `k:${value}` : `u:${uid}`))).size;
 }

@@ -16,7 +16,9 @@ import {
   touchFirestoreSession,
   markFirestoreSessionAbandoned,
   clearFirestoreQuestions,
+  findParticipantAvatar,
 } from '../firebase/sessionService';
+import { inviteParticipantKey, loadStoredAvatar, storeAvatar } from '../lib/participantKey';
 import { applyQuestionSnapshot, isFromEarlierSession, isLobbyIdleExpired, withMine } from './sessionModel';
 import { timestampMillis } from '../lib/timestamps';
 import { goOnline, goOffline, subscribeToPresence } from '../firebase/presence';
@@ -97,6 +99,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [ggSession, setGgSession] = useState<GummyGumLaunchSession | null>(null);
   const [ggAccessState, setGgAccessState] = useState<GgAccessState>(isDemoMode() ? 'granted' : 'checking');
   const ggRoutedRef = useRef(false);
+  const [derivedKey, setDerivedKey] = useState<{ email: string; key: string | null } | null>(null);
   const unsubSessionRef = useRef<(() => void) | null>(null);
   const unsubQuestionsRef = useRef<(() => void) | null>(null);
   const unsubMyVoteRef = useRef<(() => void) | null>(null);
@@ -135,6 +138,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setGgAccessState(gg ? 'granted' : 'denied');
     });
   }, []);
+
+  // A GummyGum invitee is identified by their invite email, so rejoins resume rather than duplicate.
+  const inviteEmail = ggSession && !ggSession.isHost && ggSession.roomCode ? ggSession.player?.email?.trim() || null : null;
+  const participantKeyReady = !inviteEmail || derivedKey?.email === inviteEmail;
+  const participantKey = inviteEmail && derivedKey?.email === inviteEmail ? derivedKey.key : null;
+  useEffect(() => {
+    if (!inviteEmail || !ggSession?.roomCode) return;
+    let cancelled = false;
+    inviteParticipantKey(ggSession.roomCode, ggSession.hostedSessionId, inviteEmail)
+      .catch(() => null)
+      .then((key) => {
+        if (!cancelled) setDerivedKey({ email: inviteEmail, key });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteEmail, ggSession?.roomCode, ggSession?.hostedSessionId]);
 
   // Auth on mount
   useEffect(() => {
@@ -210,18 +230,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           justVotedId: marker ? marker.votedFor : null,
         })),
       handleListenerError,
-      session.hostedSessionId
+      session.hostedSessionId,
+      participantKey
     );
     unsubMyVoteRef.current = unsubscribe;
 
     return unsubscribe;
-  }, [session?.id, session?.round, session?.hostedSessionId, uid_, isSyncEnabled, handleListenerError, syncRevision]);
+  }, [session?.id, session?.round, session?.hostedSessionId, uid_, participantKey, isSyncEnabled, handleListenerError, syncRevision]);
 
   // Subscribe to presence
   useEffect(() => {
     if (!session?.id || !uid_ || !isSyncEnabled) return;
 
-    goOnline(session.id, uid_);
+    goOnline(session.id, uid_, participantKey);
     const unsubscribe = subscribeToPresence(session.id, setPresenceCount);
     unsubPresenceRef.current = unsubscribe;
 
@@ -230,7 +251,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       goOffline(sessionId, uid_);
       unsubscribe();
     };
-  }, [session?.id, uid_, isSyncEnabled, syncRevision]);
+  }, [session?.id, uid_, participantKey, isSyncEnabled, syncRevision]);
 
   const isHost = !!session?.hostUid && session.hostUid === uid_;
 
@@ -385,13 +406,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const questionSubmitLocked = questionSubmitCooldownMs > 0;
 
-  const questionsWithMine = useMemo(() => withMine(questions, uid_), [questions, uid_]);
+  const questionsWithMine = useMemo(() => withMine(questions, uid_, participantKey), [questions, uid_, participantKey]);
 
   const activePool = questionsWithMine.filter((q) => !q.answered);
   const submittedCount = questionsWithMine.length;
   const answeredCount = questionsWithMine.filter((q) => q.answered).length;
   const remainingCount = activePool.length;
   const currentQuestion = questionsWithMine.find((q) => q.id === session?.currentQuestionId) || null;
+  const resumedQuestionId = participantKey && !me.myQuestionId ? questionsWithMine.find((q) => q.mine)?.id ?? null : null;
+  const meView = useMemo(() => (resumedQuestionId ? { ...me, myQuestionId: resumedQuestionId } : me), [me, resumedQuestionId]);
 
   const updateConfig = (patch: Partial<SessionConfig>) => {
     setSession((prev) => (prev ? { ...prev, config: { ...prev.config, ...patch } } : prev));
@@ -436,7 +459,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const joinSession = useCallback(
-    async (code: string) => {
+    async (code: string, resumeKey?: string | null) => {
       if (isSyncEnabled) {
         setSyncStatus('syncing');
         setJoinError(null);
@@ -447,9 +470,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             setSyncStatus('error');
             return;
           }
+          let resumedAvatar: string | null = null;
+          if (resumeKey) {
+            resumedAvatar = loadStoredAvatar(resumeKey);
+            if (!resumedAvatar) {
+              try {
+                resumedAvatar = await findParticipantAvatar(code, resumeKey);
+              } catch (err) {
+                console.error('Could not look up returning participant:', err);
+              }
+            }
+          }
           setSession(remote);
           setQuestions([]);
-          setView('avatarSelect');
+          if (resumedAvatar) {
+            setMe((prev) => ({ ...prev, avatar: resumedAvatar, joined: true }));
+            setView('room');
+          } else {
+            setView('avatarSelect');
+          }
           setSyncStatus('synced');
         } catch (err) {
           setJoinError(err instanceof Error ? err : new Error('Could not join the room.'));
@@ -543,7 +582,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // the room, participant joins it directly by the hub's room code.
   useEffect(() => {
     if (ggRoutedRef.current || !isFirebaseConfigured()) return;
-    if (ggAccessState !== 'granted' || !ggSession || !uid_ || authStatus !== 'signedIn') return;
+    if (ggAccessState !== 'granted' || !ggSession || !uid_ || authStatus !== 'signedIn' || !participantKeyReady) return;
     ggRoutedRef.current = true;
     if (ggSession.isHost) {
       void beginGummyGumHostSession(ggSession);
@@ -551,7 +590,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const code = ggSession.roomCode;
       const hostedSessionId = ggSession.hostedSessionId;
       if (!hostedSessionId || !isSyncEnabled) {
-        void joinSession(code);
+        void joinSession(code, participantKey);
         return;
       }
       // Wait for the host to create or reset the reused PIN's session for this hosted session.
@@ -563,18 +602,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           if (joined || isFromEarlierSession(remote, hostedSessionId, Date.now())) return;
           joined = true;
           unsubscribe();
-          void joinSession(code);
+          void joinSession(code, participantKey);
         },
         handleListenerError
       );
     }
-  }, [ggAccessState, ggSession, uid_, authStatus, beginGummyGumHostSession, joinSession, isSyncEnabled, handleListenerError]);
+  }, [ggAccessState, ggSession, uid_, authStatus, participantKeyReady, participantKey, beginGummyGumHostSession, joinSession, isSyncEnabled, handleListenerError]);
 
   const chooseAvatar = (avatarId: string) => {
     setMe((prev) => ({ ...prev, avatar: avatarId }));
   };
 
   const confirmEnterRoom = () => {
+    if (participantKey && me.avatar) storeAvatar(participantKey, me.avatar);
     setMe((prev) => ({ ...prev, joined: true }));
     if (!isSyncEnabled) {
       setQuestions((prev) => (prev.length === 0 ? getSeedQuestions() : prev));
@@ -612,7 +652,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setMe((prev) => ({ ...prev, myQuestionId: newQ.id }));
     showToast('You just added your voice.');
 
-    const ok = await syncToFirestore(() => submitFirestoreQuestion(session!.id!, uid_!, newQ));
+    const ok = await syncToFirestore(() => submitFirestoreQuestion(session!.id!, uid_!, newQ, participantKey));
     if (ok === false) {
       setQuestionSubmitCooldownUntil(now + 10_000);
       setQuestions((prev) => prev.filter((q) => q.id !== newQ.id));
@@ -671,7 +711,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
 
     setMe((prev) => ({ ...prev, votedThisRound: true, justVotedId: qid }));
-    const ok = await syncToFirestore(() => voteFirestoreQuestion(session!.id!, qid, session!.round, uid_!, session!.hostedSessionId));
+    const ok = await syncToFirestore(() => voteFirestoreQuestion(session!.id!, qid, session!.round, uid_!, session!.hostedSessionId,
+      participantKey ? { key: participantKey, avatarId: me.avatar } : null));
     if (ok === false) {
       showToast('You already voted this round.');
       setMe((prev) => (prev.justVotedId === qid ? { ...prev, votedThisRound: false, justVotedId: null } : prev));
@@ -781,7 +822,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setClosingStep,
     session,
     questions: questionsWithMine,
-    me,
+    me: meView,
     toasts,
     presenceCount,
     sessionExpired,

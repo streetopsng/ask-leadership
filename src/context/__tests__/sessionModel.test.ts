@@ -62,6 +62,16 @@ describe('withMine', () => {
     expect(result[0].mine).toBe(true);
     expect(result[1].mine).toBe(false);
   });
+
+  it('marks a returning invitee\'s questions from another device as mine via their participant key', () => {
+    const list = [
+      { ...normalizeQuestion({ id: 'a', participantUid: 'old-device' }), participantKey: 'k1' },
+      { ...normalizeQuestion({ id: 'b', participantUid: 'someone' }), participantKey: 'k2' },
+    ];
+    const result = withMine(list, 'new-device', 'k1');
+    expect(result[0].mine).toBe(true);
+    expect(result[1].mine).toBe(false);
+  });
 });
 
 describe('applyQuestionSnapshot', () => {
