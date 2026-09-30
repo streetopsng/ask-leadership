@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { useSession } from '../../context/SessionContext';
 import { AVATAR_IDS, avatarUrl } from '../../lib/avatars';
 import Button from '../common/Button';
+import GameRulesModal from '../common/GameRulesModal';
 import { MicIcon } from '../../constants/icons';
 
 export default function AvatarSelectView() {
   const { me, chooseAvatar, confirmEnterRoom, setView, ggSession } = useSession();
   const chosen = me.avatar;
+  const [showRules, setShowRules] = useState(false);
 
   return (
     <div className="min-h-screen flex flex-col bg-cream">
@@ -75,11 +78,20 @@ export default function AvatarSelectView() {
 
       <footer className="sticky bottom-0 border-t-[2.5px] border-ink bg-white px-6 py-4">
         <div className="max-w-xl mx-auto">
-          <Button variant="primary" fullWidth disabled={!chosen} onClick={confirmEnterRoom}>
+          <Button variant="primary" fullWidth disabled={!chosen} onClick={() => setShowRules(true)}>
             {chosen ? 'Enter the room' : 'Pick an avatar to continue'}
           </Button>
         </div>
       </footer>
+
+      {showRules && (
+        <GameRulesModal
+          onConfirm={() => {
+            setShowRules(false);
+            confirmEnterRoom();
+          }}
+        />
+      )}
     </div>
   );
 }
