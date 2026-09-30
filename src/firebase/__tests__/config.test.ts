@@ -41,9 +41,9 @@ describe('firebase config', () => {
   })
 
   describe('isFirebaseConfigured', () => {
-    it('returns false when no env vars are set', async () => {
+    it('falls back to the built-in config when no env vars are set', async () => {
       const { isFirebaseConfigured } = await import('../config')
-      expect(isFirebaseConfigured()).toBe(false)
+      expect(isFirebaseConfigured()).toBe(true)
     })
 
     it('returns true when env vars are set', async () => {
@@ -64,10 +64,10 @@ describe('firebase config', () => {
       expect(mockSignInAnonymously).toHaveBeenCalledOnce()
     })
 
-    it('returns null when Firebase is not configured', async () => {
+    it('signs in with the built-in config when no env vars are set', async () => {
       const { signInAnonymouslyToFirebase } = await import('../config')
       const uid = await signInAnonymouslyToFirebase()
-      expect(uid).toBeNull()
+      expect(uid).toBe('anon-123')
     })
   })
 })
