@@ -10,6 +10,7 @@ const mockIncrement = vi.fn((n) => ({ _increment: n }))
 const mockServerTimestamp = vi.fn(() => 'server-timestamp')
 const mockRunTransaction = vi.fn()
 const mockOrderBy = vi.fn()
+const mockGetDocs = vi.fn()
 
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db: unknown, _col: unknown, ...rest: string[]) => ({ id: rest[rest.length - 1] })),
@@ -25,7 +26,7 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn(),
   orderBy: mockOrderBy,
   where: vi.fn(),
-  getDocs: vi.fn(),
+  getDocs: mockGetDocs,
   writeBatch: vi.fn(() => ({ update: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) })),
 }))
 
@@ -134,6 +135,30 @@ describe('sessionService', () => {
 
       expect(result).toBe(false)
       expect(mockSetDoc).not.toHaveBeenCalled()
+    })
+    it('rejects a keyed participant whose latest question on another device is still cooling down', async () => {
+      mockGetDocs.mockResolvedValue({
+        docs: [{ data: () => ({ participantKey: 'k1', createdAt: { toMillis: () => Date.now() - 3000 } }) }],
+      })
+
+      const question = { id: 'q3', text: 'Second device?', avatarId: 'fox' }
+      const result = await mod.submitFirestoreQuestion('AL-TEST', 'new-device-uid', question, 'k1')
+
+      expect(result).toBe(false)
+      expect(mockRunTransaction).not.toHaveBeenCalled()
+    })
+
+    it('lets a keyed participant submit once their latest question is past the window', async () => {
+      mockGetDocs.mockResolvedValue({
+        docs: [{ data: () => ({ participantKey: 'k1', createdAt: { toMillis: () => Date.now() - 11000 } }) }],
+      })
+      mockRunTransaction.mockResolvedValue(undefined)
+
+      const question = { id: 'q4', text: 'Now?', avatarId: 'fox' }
+      const result = await mod.submitFirestoreQuestion('AL-TEST', 'new-device-uid', question, 'k1')
+
+      expect(result).toBe(true)
+      expect(mockRunTransaction).toHaveBeenCalledOnce()
     })
   })
 

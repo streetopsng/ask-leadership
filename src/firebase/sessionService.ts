@@ -24,11 +24,10 @@ import {
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './config';
 import { timestampMillis } from '../lib/timestamps';
-import { isAbandonedInProgress } from '../context/sessionModel';
+import { isAbandonedInProgress, QUESTION_SUBMIT_COOLDOWN_MS } from '../context/sessionModel';
 import type { Session, Question, VoteMarker, SessionConfig } from '../types';
 
 const SESSIONS = 'sessions';
-const QUESTION_SUBMIT_COOLDOWN_MS = 10_000;
 const TTL_DAYS = 30;
 
 function ttlDateFromNow(days = TTL_DAYS): Date {
@@ -62,6 +61,15 @@ async function isQuestionRateLimited(sessionId: string, participantUid: string):
   if (!lastSubmissionAt) return false;
 
   return Date.now() - timestampMillis(lastSubmissionAt) < QUESTION_SUBMIT_COOLDOWN_MS;
+}
+
+// rate_limits is keyed by auth uid, so a keyed invitee on a second device is checked by their own questions.
+async function isParticipantKeyRateLimited(sessionId: string, participantKey: string): Promise<boolean> {
+  const snapshot: QuerySnapshot<DocumentData> = await getDocs(
+    query(collection(db!, SESSIONS, sessionId, 'questions'), where('participantKey', '==', participantKey))
+  );
+  const latest = Math.max(0, ...snapshot.docs.map((d) => timestampMillis(d.data().createdAt)));
+  return latest > 0 && Date.now() - latest < QUESTION_SUBMIT_COOLDOWN_MS;
 }
 
 /**
@@ -247,6 +255,7 @@ export async function submitFirestoreQuestion(
   if (!isFirebaseConfigured()) return false;
 
   if (await isQuestionRateLimited(sessionId, participantUid)) return false;
+  if (participantKey && (await isParticipantKeyRateLimited(sessionId, participantKey))) return false;
 
   try {
     await runTransaction(db!, async (tx) => {

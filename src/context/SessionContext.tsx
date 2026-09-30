@@ -19,7 +19,7 @@ import {
   findParticipantAvatar,
 } from '../firebase/sessionService';
 import { inviteParticipantKey, loadStoredAvatar, storeAvatar } from '../lib/participantKey';
-import { applyQuestionSnapshot, isFromEarlierSession, isLobbyIdleExpired, withMine } from './sessionModel';
+import { applyQuestionSnapshot, cooldownRemainingMs, isFromEarlierSession, isLobbyIdleExpired, questionCooldownUntil, QUESTION_SUBMIT_COOLDOWN_MS, withMine } from './sessionModel';
 import { timestampMillis } from '../lib/timestamps';
 import { goOnline, goOffline, subscribeToPresence } from '../firebase/presence';
 import { AVATAR_IDS, DEFAULT_AVATAR_ID } from '../lib/avatars';
@@ -390,23 +390,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     syncToFirestoreRef.current = syncToFirestore;
   });
 
-  useEffect(() => {
-    if (questionSubmitCooldownUntil === null) return;
+  const questionsWithMine = useMemo(() => withMine(questions, uid_, participantKey), [questions, uid_, participantKey]);
 
+  const derivedCooldownUntil = useMemo(() => questionCooldownUntil(questionsWithMine), [questionsWithMine]);
+  const cooldownUntil = Math.max(questionSubmitCooldownUntil ?? 0, derivedCooldownUntil ?? 0) || null;
+
+  useEffect(() => {
+    if (!cooldownUntil) return;
+
+    let timer = 0;
     const tick = () => {
-      const remaining = Math.max(0, questionSubmitCooldownUntil - Date.now());
+      const remaining = cooldownRemainingMs(cooldownUntil, Date.now());
       setQuestionSubmitCooldownMs(remaining);
-      if (remaining === 0) setQuestionSubmitCooldownUntil(null);
+      if (remaining === 0) window.clearInterval(timer);
     };
 
+    timer = window.setInterval(tick, 250);
     tick();
-    const timer = window.setInterval(tick, 250);
     return () => window.clearInterval(timer);
-  }, [questionSubmitCooldownUntil]);
+  }, [cooldownUntil]);
 
-  const questionSubmitLocked = questionSubmitCooldownMs > 0;
-
-  const questionsWithMine = useMemo(() => withMine(questions, uid_, participantKey), [questions, uid_, participantKey]);
+  const activeCooldownMs = cooldownUntil ? questionSubmitCooldownMs : 0;
+  const questionSubmitLocked = activeCooldownMs > 0;
 
   const activePool = questionsWithMine.filter((q) => !q.answered);
   const submittedCount = questionsWithMine.length;
@@ -630,8 +635,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
 
     const now = Date.now();
-    if (questionSubmitCooldownUntil && now < questionSubmitCooldownUntil) {
-      const remainingSeconds = Math.max(1, Math.ceil((questionSubmitCooldownUntil - now) / 1000));
+    const remainingMs = cooldownRemainingMs(cooldownUntil, now);
+    if (remainingMs > 0) {
+      const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
       showToast(`Please slow down. Try again in ${remainingSeconds}s.`);
       return;
     }
@@ -647,14 +653,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       ts: now,
     };
 
-    setQuestionSubmitCooldownUntil(now + 10_000);
+    setQuestionSubmitCooldownUntil(now + QUESTION_SUBMIT_COOLDOWN_MS);
     setQuestions((prev) => [{ ...newQ, mine: true }, ...prev]);
     setMe((prev) => ({ ...prev, myQuestionId: newQ.id }));
     showToast('You just added your voice.');
 
     const ok = await syncToFirestore(() => submitFirestoreQuestion(session!.id!, uid_!, newQ, participantKey));
     if (ok === false) {
-      setQuestionSubmitCooldownUntil(now + 10_000);
+      setQuestionSubmitCooldownUntil(now + QUESTION_SUBMIT_COOLDOWN_MS);
       setQuestions((prev) => prev.filter((q) => q.id !== newQ.id));
       setMe((prev) => ({ ...prev, myQuestionId: null }));
       showToast('Please slow down. Try again in a few seconds.');
@@ -828,7 +834,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     sessionExpired,
     sessionEnded,
     questionSubmitLocked,
-    questionSubmitCooldownMs,
+    questionSubmitCooldownMs: activeCooldownMs,
     showToast,
     activePool,
     submittedCount,

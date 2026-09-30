@@ -32,6 +32,23 @@ export function withMine(questions: Question[], myUid: string | null, myKey: str
   }));
 }
 
+export const QUESTION_SUBMIT_COOLDOWN_MS = 10_000;
+
+/** When the participant's own latest question (by server time, else local ts) stops blocking a new one. */
+export function questionCooldownUntil(questions: Question[]): number | null {
+  let latest = 0;
+  for (const q of questions) {
+    if (q.mine) latest = Math.max(latest, timestampMillis(q.createdAt) || q.ts || 0);
+  }
+  return latest ? latest + QUESTION_SUBMIT_COOLDOWN_MS : null;
+}
+
+// Capped so a client clock running behind the server can't stretch the wait past one window.
+export function cooldownRemainingMs(until: number | null, now: number): number {
+  if (!until) return 0;
+  return Math.min(QUESTION_SUBMIT_COOLDOWN_MS, Math.max(0, until - now));
+}
+
 /**
  * Reconciles the local question list with the latest server snapshot.
  * The server is canonical: questions deleted (or moderated) on the server
