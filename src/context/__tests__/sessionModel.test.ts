@@ -6,6 +6,9 @@ import {
   isLobbyIdleExpired,
   isAbandonedInProgress,
   LOBBY_IDLE_MS,
+  questionCooldownUntil,
+  cooldownRemainingMs,
+  QUESTION_SUBMIT_COOLDOWN_MS,
   ABANDON_THRESHOLD_MS,
 } from '../sessionModel';
 
@@ -59,6 +62,16 @@ describe('withMine', () => {
       { ...normalizeQuestion({ id: 'y' }), mine: false },
     ];
     const result = withMine(list, null);
+    expect(result[0].mine).toBe(true);
+    expect(result[1].mine).toBe(false);
+  });
+
+  it('marks a returning invitee\'s questions from another device as mine via their participant key', () => {
+    const list = [
+      { ...normalizeQuestion({ id: 'a', participantUid: 'old-device' }), participantKey: 'k1' },
+      { ...normalizeQuestion({ id: 'b', participantUid: 'someone' }), participantKey: 'k2' },
+    ];
+    const result = withMine(list, 'new-device', 'k1');
     expect(result[0].mine).toBe(true);
     expect(result[1].mine).toBe(false);
   });
@@ -121,5 +134,36 @@ describe('session expiry', () => {
     expect(isAbandonedInProgress('voting', now - ABANDON_THRESHOLD_MS + 1, now)).toBe(false);
     expect(isAbandonedInProgress('setup', 1, now)).toBe(false);
     expect(isAbandonedInProgress('ended', 1, now)).toBe(false);
+  });
+});
+
+describe('question cooldown', () => {
+  const q = (over: Record<string, unknown>) =>
+    ({ id: 'x', text: 't', avatarId: 'cat', votes: 0, answered: false, participantUid: null, ...over }) as never;
+
+  it('derives from the latest own question by server timestamp, ignoring others', () => {
+    const until = questionCooldownUntil([
+      q({ id: 'a', mine: true, createdAt: { toMillis: () => 1_000 } }),
+      q({ id: 'b', mine: true, createdAt: { toMillis: () => 5_000 } }),
+      q({ id: 'c', mine: false, createdAt: { toMillis: () => 9_000 } }),
+    ]);
+    expect(until).toBe(5_000 + QUESTION_SUBMIT_COOLDOWN_MS);
+  });
+
+  it('follows a keyed participant onto another device via withMine', () => {
+    const feed = [q({ participantUid: 'old-device', participantKey: 'k1', createdAt: { toMillis: () => 2_000 } })];
+    expect(questionCooldownUntil(withMine(feed, 'new-device', 'k1'))).toBe(2_000 + QUESTION_SUBMIT_COOLDOWN_MS);
+    expect(questionCooldownUntil(withMine(feed, 'new-device', null))).toBeNull();
+  });
+
+  it('falls back to the local ts for an unconfirmed question', () => {
+    expect(questionCooldownUntil([q({ mine: true, ts: 3_000 })])).toBe(3_000 + QUESTION_SUBMIT_COOLDOWN_MS);
+  });
+
+  it('caps remaining time at one window when the local clock lags', () => {
+    expect(cooldownRemainingMs(null, 0)).toBe(0);
+    expect(cooldownRemainingMs(15_000, 10_000)).toBe(5_000);
+    expect(cooldownRemainingMs(100_000, 0)).toBe(QUESTION_SUBMIT_COOLDOWN_MS);
+    expect(cooldownRemainingMs(5_000, 10_000)).toBe(0);
   });
 });
