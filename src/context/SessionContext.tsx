@@ -243,7 +243,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!session?.id || !uid_ || !isSyncEnabled) return;
 
     goOnline(session.id, uid_, participantKey);
-    const unsubscribe = subscribeToPresence(session.id, setPresenceCount);
+    const unsubscribe = subscribeToPresence(session.id, setPresenceCount, session.hostUid);
     unsubPresenceRef.current = unsubscribe;
 
     const sessionId = session.id;
@@ -251,7 +251,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       goOffline(sessionId, uid_);
       unsubscribe();
     };
-  }, [session?.id, uid_, participantKey, isSyncEnabled, syncRevision]);
+  }, [session?.id, session?.hostUid, uid_, participantKey, isSyncEnabled, syncRevision]);
 
   const isHost = !!session?.hostUid && session.hostUid === uid_;
 
@@ -831,6 +831,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     me: meView,
     toasts,
     presenceCount,
+    presenceTracked: isSyncEnabled,
     sessionExpired,
     sessionEnded,
     questionSubmitLocked,

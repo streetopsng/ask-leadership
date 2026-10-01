@@ -24,16 +24,16 @@ export async function goOffline(sessionId: string, uid: string): Promise<void> {
   await remove(presenceRef);
 }
 
-export function subscribeToPresence(sessionId: string, onUpdate: (count: number) => void): () => void {
+export function subscribeToPresence(sessionId: string, onUpdate: (count: number) => void, excludeUid?: string | null): () => void {
   if (!isFirebaseConfigured()) return () => {};
 
   const presenceRef: DatabaseReference = ref(getDb(), `presence/${sessionId}`);
   return onValue(presenceRef, (snapshot) => {
-    onUpdate(countPresence(snapshot.val() as Record<string, unknown> | null));
+    onUpdate(countPresence(snapshot.val() as Record<string, unknown> | null, excludeUid));
   });
 }
 
-export function countPresence(data: Record<string, unknown> | null): number {
+export function countPresence(data: Record<string, unknown> | null, excludeUid?: string | null): number {
   if (!data) return 0;
-  return new Set(Object.entries(data).map(([uid, value]) => (typeof value === 'string' && value ? `k:${value}` : `u:${uid}`))).size;
+  return new Set(Object.entries(data).filter(([uid]) => uid !== excludeUid).map(([uid, value]) => (typeof value === 'string' && value ? `k:${value}` : `u:${uid}`))).size;
 }

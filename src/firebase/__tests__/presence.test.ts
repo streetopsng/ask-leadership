@@ -58,6 +58,7 @@ describe('presence', () => {
       const { countPresence } = await import('../presence')
       expect(countPresence(null)).toBe(0)
       expect(countPresence({ a: 'k1', b: 'k1', c: true, d: true })).toBe(3)
+      expect(countPresence({ host: true, a: 'k1', c: true }, 'host')).toBe(2)
     })
   })
 })
