@@ -29,11 +29,14 @@ export default function HostControlView() {
     removeQuestion,
     restartDemo,
     presenceCount,
+    presenceTracked,
     ggSession,
   } = useSession();
 
   if (!session) return null;
   const { phase } = session;
+  const MIN_PARTICIPANTS = 2;
+  const canOpenSubmissions = !presenceTracked || presenceCount >= MIN_PARTICIPANTS;
 
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-[280px_1fr] bg-cream">
@@ -79,9 +82,16 @@ export default function HostControlView() {
         {/* Phase Action Controls */}
         <div className="flex flex-col gap-2.5 mt-1">
           {(phase === 'setup' || phase === 'invited') && (
-            <Button variant="primary" fullWidth onClick={openSubmissions}>
-              Open submissions
-            </Button>
+            <>
+              <Button variant="primary" fullWidth onClick={openSubmissions} disabled={!canOpenSubmissions}>
+                Open submissions
+              </Button>
+              {!canOpenSubmissions && (
+                <div className="font-mono text-[11px] text-muted-ink text-center">
+                  Waiting for at least {MIN_PARTICIPANTS} participants ({presenceCount} joined)
+                </div>
+              )}
+            </>
           )}
 
           {phase === 'submitting' && (

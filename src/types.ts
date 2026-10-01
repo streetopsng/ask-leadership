@@ -123,6 +123,7 @@ export interface SessionContextValue {
   me: Me;
   toasts: Toast[];
   presenceCount: number;
+  presenceTracked: boolean;
   sessionExpired: 'lobby' | 'game' | null;
   sessionEnded: 'ended' | 'completed' | null;
   questionSubmitLocked: boolean;
