@@ -4,6 +4,22 @@ service cloud.firestore {
 
     // Sessions collection
     match /sessions/{sessionId} {
+      // The voter's marker id for the session's current round, as voteRef() in sessionService builds it.
+      function voteMarkerPath(session) {
+        let base = string(session.round) + '_' + request.auth.uid;
+        let id = session.get('hostedSessionId', null) is string ? base + '_' + session.hostedSessionId : base;
+        return /databases/$(database)/documents/sessions/$(sessionId)/votes/$(id);
+      }
+
+      // A participant's vote adds exactly one to the count, in the same write that creates their marker.
+      function isOwnVoteCount() {
+        let marker = voteMarkerPath(get(/databases/$(database)/documents/sessions/$(sessionId)).data);
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes', 'expireAt'])
+          && request.resource.data.votes == resource.data.votes + 1
+          && !exists(marker)
+          && existsAfter(marker);
+      }
+
       // Anyone authenticated can create a session
       allow create: if request.auth != null;
 
@@ -33,8 +49,11 @@ service cloud.firestore {
           && (!exists(/databases/$(database)/documents/sessions/$(sessionId)/rate_limits/$(request.auth.uid))
             || request.time.toMillis() - get(/databases/$(database)/documents/sessions/$(sessionId)/rate_limits/$(request.auth.uid)).data.lastSubmissionAt.toMillis() >= 10000);
 
-        // Only the host can update (mark answered) or delete questions
-        allow update, delete: if request.auth != null
+        // Only the host can update (mark answered) or delete questions; participants can only count their own vote
+        allow update: if request.auth != null
+          && (request.auth.uid == get(/databases/$(database)/documents/sessions/$(sessionId)).data.hostUid
+            || isOwnVoteCount());
+        allow delete: if request.auth != null
           && request.auth.uid == get(/databases/$(database)/documents/sessions/$(sessionId)).data.hostUid;
 
         // Anyone authenticated can read questions

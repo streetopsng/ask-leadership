@@ -334,7 +334,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const sessionEnded: 'ended' | 'completed' | null = !ggSession
     ? null
-    : hubEnded || session?.cancelled
+    : session?.cancelled || (hubEnded && sessionPhase !== 'ended')
       ? 'ended'
       : sessionPhase === 'ended' && !isHost
         ? 'completed'
@@ -757,11 +757,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   };
 
   const endSession = async () => {
+    // Nothing was answered yet, so the session never really ran: cancel instead of saving an empty result.
+    if (ggSession?.isHost && answeredCount === 0) {
+      endHandledRef.current = true;
+      await reportGummyGumCancel();
+      await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'ended', cancelled: true }));
+      returnToGummyGum(ggSession.hubUrl);
+      return;
+    }
+
     const sessionExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     patchSession({ phase: 'ended' });
     setClosingStep(remainingCount > 0 || answeredCount < submittedCount ? 0 : 1);
     setView('closing');
 
+    await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'ended', expireAt: sessionExpiry }));
+
+    // After the room shows 'ended': the report also ends the hub session, which participants watch for.
     if (ggSession?.isHost) {
       void reportGummyGumResult({
         score: answeredCount,
@@ -771,8 +783,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         name: ggSession.player?.name || 'Host',
       });
     }
-
-    await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'ended', expireAt: sessionExpiry }));
   };
 
   const cancelSessionForAll = async () => {

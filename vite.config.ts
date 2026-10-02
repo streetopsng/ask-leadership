@@ -12,6 +12,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: [],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/emulator-*.test.ts'],
+    // Emulator suites only run under `firebase emulators:exec`, which sets FIRESTORE_EMULATOR_HOST.
+    exclude: ['**/node_modules/**', '**/dist/**', ...(process.env.FIRESTORE_EMULATOR_HOST ? [] : ['**/emulator-*.test.ts'])],
   },
 })
