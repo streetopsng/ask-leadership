@@ -386,7 +386,8 @@ export async function updateFirestoreSessionPhase(
   await updateDoc(sessionRef(sessionId), {
     ...patch,
     updatedAt: serverTimestamp(),
-    expireAt: patch.phase === 'ended' ? ttlDateFromNow() : undefined,
+    // Firestore rejects undefined field values, so expireAt is only sent when it is set.
+    ...(patch.phase === 'ended' ? { expireAt: ttlDateFromNow() } : {}),
   });
 
   return true;
