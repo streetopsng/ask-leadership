@@ -125,7 +125,7 @@ export interface SessionContextValue {
   presenceCount: number;
   presenceTracked: boolean;
   sessionExpired: 'lobby' | 'game' | null;
-  sessionEnded: 'ended' | 'completed' | null;
+  sessionEnded: 'ended' | null;
   questionSubmitLocked: boolean;
   questionSubmitCooldownMs: number;
   showToast: (msg: string, action?: Toast['action']) => void;

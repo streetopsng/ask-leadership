@@ -3,18 +3,16 @@ import { reportGummyGumCancel, returnToGummyGum } from '../../lib/gummygumSessio
 
 interface SessionExpiredModalProps {
   isHost: boolean;
-  context: 'lobby' | 'game' | 'ended' | 'completed';
+  context: 'lobby' | 'game' | 'ended';
   hubUrl: string | null;
 }
 
 export default function SessionExpiredModal({ isHost, context, hubUrl }: SessionExpiredModalProps) {
-  const isEnded = context === 'ended' || context === 'completed';
+  const isEnded = context === 'ended';
   const message = isEnded
     ? isHost
       ? 'This session has ended. Returning you to GummyGum...'
-      : context === 'completed'
-        ? 'This session is complete. Thank you for being here. You can close this tab now.'
-        : 'The host ended this session. You can close this tab now.'
+      : 'The host ended this session. You can close this tab now.'
     : context === 'game'
       ? isHost
         ? 'This session was abandoned mid-session with nobody connected for several hours, so it has been ended. You can return to GummyGum to launch a fresh session.'
