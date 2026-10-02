@@ -275,6 +275,7 @@ describe('sessionService', () => {
       expect(mockUpdateDoc).toHaveBeenCalledOnce()
       const [, data] = mockUpdateDoc.mock.calls[0]
       expect(data).toMatchObject({ phase: 'voting' })
+      expect(Object.values(data as Record<string, unknown>)).not.toContain(undefined)
     })
 
     it('rejects when called by non-host', async () => {

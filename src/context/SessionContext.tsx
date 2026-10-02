@@ -332,13 +332,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return watchHubSessionStatus({ pin: hubPin, hostedSessionId: hubHostedSessionId, onEnded: () => setHubEnded(true) });
   }, [watchHub, hubPin, hubHostedSessionId]);
 
-  const sessionEnded: 'ended' | 'completed' | null = !ggSession
+  const sessionEnded: 'ended' | null = !ggSession
     ? null
     : session?.cancelled || (hubEnded && sessionPhase !== 'ended')
       ? 'ended'
-      : sessionPhase === 'ended' && !isHost
-        ? 'completed'
-        : null;
+      : null;
+
+  // A session the host finished (not cancelled) shows participants the closing screen.
+  const shownView: ViewName = ggSession && !isHost && sessionPhase === 'ended' && !session?.cancelled ? 'closing' : view;
 
   // The session is already closed on the hub, so the host leaves without reporting cancel again.
   const endHandledRef = useRef(false);
@@ -830,7 +831,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     retryJoin,
     syncError,
     retrySync,
-    view,
+    view: shownView,
     setView,
     demoRole,
     setDemoRole,

@@ -12,7 +12,6 @@ import RoomView from './components/views/RoomView';
 import ClosingView from './components/views/ClosingView';
 import HostDashboardView from './components/views/HostDashboardView';
 import ToastStack from './components/common/ToastStack';
-import RoleSwitcher from './components/common/RoleSwitcher';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import InitializationFallback from './components/common/InitializationFallback';
 import SessionExpiredModal from './components/common/SessionExpiredModal';
@@ -172,7 +171,6 @@ function SessionViews() {
         />
       )}
       <ToastStack />
-      <RoleSwitcher />
     </>
   );
 }
