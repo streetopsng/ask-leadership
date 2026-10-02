@@ -1,4 +1,6 @@
+// @vitest-environment node
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 
 const PROJECT_ID = 'demo-ask-leadership';
@@ -10,8 +12,7 @@ describe('Firestore rate limit emulator check', () => {
     testEnv = await initializeTestEnvironment({
       projectId: PROJECT_ID,
       firestore: {
-        host: '127.0.0.1',
-        port: 8080,
+        rules: readFileSync(new URL('../../../firestore.rules', import.meta.url), 'utf8'),
       },
     });
   });
