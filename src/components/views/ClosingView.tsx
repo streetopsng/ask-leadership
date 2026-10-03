@@ -12,12 +12,10 @@ export default function ClosingView() {
     submittedCount,
     answeredCount,
     remainingCount,
-    restartDemo,
     questions,
     session,
     uid,
     showToast,
-    ggSession,
   } = useSession();
 
   const isHost = session?.hostUid != null && uid != null && session.hostUid === uid;
@@ -143,15 +141,9 @@ export default function ClosingView() {
             Thanks for helping shape the conversation.
           </p>
 
-          {ggSession ? (
-            <Button variant="ghost" onClick={() => returnToGummyGum()}>
-              Back to GummyGum
-            </Button>
-          ) : (
-            <Button variant="ghost" onClick={restartDemo}>
-              Return to landing
-            </Button>
-          )}
+          <Button variant="ghost" onClick={() => returnToGummyGum()}>
+            Back to GummyGum
+          </Button>
         </StageFrame>
       </div>
     </div>

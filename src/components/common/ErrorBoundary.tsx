@@ -28,7 +28,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
     this.setState({ hasError: false });
   };
 
-  private resetToLanding = (): void => {
+  private resetToHub = (): void => {
     this.props.onReset();
     this.retry();
   };
@@ -44,11 +44,11 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
             We hit a snag keeping the room in sync.
           </h1>
           <p className="font-body font-semibold text-muted-ink mt-3 max-w-lg mx-auto">
-            Your identity remains anonymous. Try reconnecting to the room, or return safely to the landing page.
+            Your identity remains anonymous. Try reconnecting to the room, or return safely to GummyGum.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3 mt-7">
             <Button variant="primary" onClick={this.retry}>Retry</Button>
-            <Button variant="ghost" onClick={this.resetToLanding}>Back to landing</Button>
+            <Button variant="ghost" onClick={this.resetToHub}>Back to GummyGum</Button>
           </div>
         </StageFrame>
       </main>

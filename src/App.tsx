@@ -1,11 +1,7 @@
 import { useEffect } from 'react';
 import { SessionProvider, useSession } from './context/SessionContext';
 import { isFirebaseConfigured, missingFirebaseEnvVars } from './firebase/config';
-import LandingView from './components/views/LandingView';
-import HostSetupView from './components/views/HostSetupView';
-import HostReadyView from './components/views/HostReadyView';
 import HostControlView from './components/views/HostControlView';
-import EmployeeInviteView from './components/views/EmployeeInviteView';
 import EmployeeWelcomeView from './components/views/EmployeeWelcomeView';
 import AvatarSelectView from './components/views/AvatarSelectView';
 import RoomView from './components/views/RoomView';
@@ -15,10 +11,12 @@ import ToastStack from './components/common/ToastStack';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import InitializationFallback from './components/common/InitializationFallback';
 import SessionExpiredModal from './components/common/SessionExpiredModal';
+import LoadingScreen from './components/common/LoadingScreen';
+import { returnToGummyGum } from './lib/gummygumSession';
 import type { ViewName } from './types';
 
-const HOST_VIEWS: ViewName[] = ['hostSetup', 'hostReady', 'hostControl', 'dashboard', 'closing'];
-const PARTICIPANT_VIEWS: ViewName[] = ['employeeInvite', 'employeeWelcome', 'avatarSelect', 'room', 'closing'];
+const HOST_VIEWS: ViewName[] = ['hostControl', 'dashboard', 'closing'];
+const PARTICIPANT_VIEWS: ViewName[] = ['employeeWelcome', 'avatarSelect', 'room', 'closing'];
 
 function GummyGumLockedScreen() {
   return (
@@ -68,14 +66,13 @@ function MainApp() {
     sessionEnded,
     authStatus,
     syncStatus,
-    restartDemo,
     retryAuthentication,
     retryJoin,
     retrySync,
   } = useSession();
 
   if (ggAccessState === 'checking') {
-    return <div className="min-h-screen w-full bg-cream" />;
+    return <LoadingScreen />;
   }
 
   if (ggAccessState === 'denied') {
@@ -116,7 +113,7 @@ function MainApp() {
 
   return (
     <div className="min-h-screen bg-cream text-ink font-body selection:bg-brand-purple selection:text-ink">
-      <ErrorBoundary onReset={restartDemo} onRetry={retrySync}>
+      <ErrorBoundary onReset={() => returnToGummyGum(ggSession?.hubUrl)} onRetry={retrySync}>
         <SessionViews />
       </ErrorBoundary>
     </div>
@@ -124,29 +121,21 @@ function MainApp() {
 }
 
 function SessionViews() {
-  const { view, syncError, sessionExpired, session, uid, ggSession, retryJoin } = useSession();
+  const { view, syncError, sessionExpired, session, uid, ggSession } = useSession();
 
   if (syncError) throw syncError;
 
-  // GummyGum sets the role; never render the other role's screens (or the standalone landing) while routing.
-  if (ggSession && !(ggSession.isHost ? HOST_VIEWS : PARTICIPANT_VIEWS).includes(view)) {
-    return <InitializationFallback state="joining" onRetry={retryJoin} />;
+  // Ask Leadership only runs from a GummyGum launch, which sets the role; anything else waits here while it routes.
+  if (!ggSession || !(ggSession.isHost ? HOST_VIEWS : PARTICIPANT_VIEWS).includes(view)) {
+    return <LoadingScreen />;
   }
 
   const renderView = () => {
     switch (view) {
-      case 'landing':
-        return <LandingView />;
-      case 'hostSetup':
-        return <HostSetupView />;
-      case 'hostReady':
-        return <HostReadyView />;
       case 'hostControl':
         return <HostControlView />;
       case 'dashboard':
         return <HostDashboardView />;
-      case 'employeeInvite':
-        return <EmployeeInviteView />;
       case 'employeeWelcome':
         return <EmployeeWelcomeView />;
       case 'avatarSelect':
@@ -156,7 +145,7 @@ function SessionViews() {
       case 'closing':
         return <ClosingView />;
       default:
-        return <LandingView />;
+        return <LoadingScreen />;
     }
   };
 

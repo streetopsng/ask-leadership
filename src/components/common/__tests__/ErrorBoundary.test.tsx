@@ -38,7 +38,7 @@ describe('ErrorBoundary', () => {
 
     expect(screen.getByText('We hit a snag keeping the room in sync.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Back to landing' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Back to GummyGum' })).toBeTruthy();
   });
 
   it('retries rendering after the failed child becomes healthy', () => {
@@ -62,7 +62,7 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Back to landing' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back to GummyGum' }));
 
     expect(onReset).toHaveBeenCalledOnce();
   });

@@ -79,7 +79,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [uid_, setUid] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [view, setView] = useState<ViewName>('landing');
+  const [view, setView] = useState<ViewName>('loading');
   const [demoRole, setDemoRole] = useState<'host' | 'employee' | null>(null);
   const [closingStep, setClosingStep] = useState(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -429,19 +429,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const setSessionMode = (mode: SessionConfig['mode']) => {
     updateConfig({ mode });
   };
-
-  const beginHostSetup = useCallback(() => {
-    setSession({
-      id: null,
-      hostUid: uid_,
-      phase: 'setup',
-      round: 1,
-      currentQuestionId: null,
-      config: DRAFT_CONFIG,
-    });
-    setQuestions([]);
-    setView('hostSetup');
-  }, [uid_]);
 
   const createSession = useCallback(
     async (config: SessionConfig) => {
@@ -800,7 +787,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setMe({ avatar: null, joined: false, myQuestionId: null, votedThisRound: false, justVotedId: null });
     setClosingStep(0);
     setDemoRole(null);
-    setView('landing');
+    setView('loading');
   };
 
   const switchRole = useCallback(
@@ -809,14 +796,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setDemoRole(role);
       if (role === 'host') {
         if (session) setView('hostControl');
-        else beginHostSetup();
       } else {
         if (me.joined) setView('room');
         else if (me.avatar) setView('avatarSelect');
         else setView('employeeWelcome');
       }
     },
-    [session, me.joined, me.avatar, beginHostSetup, ggSession]
+    [session, me.joined, me.avatar, ggSession]
   );
 
   const value: SessionContextValue = {
@@ -855,7 +841,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     currentQuestion,
     updateConfig,
     setSessionMode,
-    beginHostSetup,
     createSession,
     joinSession,
     chooseAvatar,
