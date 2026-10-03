@@ -43,6 +43,8 @@ function generateSessionCode(): string {
 }
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;
+const SYNC_ATTEMPTS = 5;
+const SYNC_RETRY_MS = 1000;
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -106,6 +108,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const unsubPresenceRef = useRef<(() => void) | null>(null);
   const toastTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const syncToFirestoreRef = useRef<(<T,>(op: () => Promise<T>) => Promise<T | undefined | null>) | null>(null);
+  const syncQueueRef = useRef<Promise<unknown>>(Promise.resolve());
 
   const isSyncEnabled = isFirebaseConfigured() && !isDemoMode();
 
@@ -373,16 +376,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const syncToFirestore = useCallback(
     async <T,>(op: () => Promise<T>): Promise<T | undefined | null> => {
       if (!isSyncEnabled) return undefined;
-      try {
-        return await op();
-      } catch (err) {
-        console.error('Firestore sync error:', err);
-        showToast('Could not save your change.', {
+      const run = async (): Promise<T | null> => {
+        for (let attempt = 0; attempt < SYNC_ATTEMPTS; attempt++) {
+          try {
+            return await op();
+          } catch (err) {
+            console.error(`Firestore sync error (attempt ${attempt + 1}):`, err);
+            if ((err as { code?: string }).code === 'permission-denied') break;
+            if (attempt < SYNC_ATTEMPTS - 1) await new Promise((resolve) => setTimeout(resolve, SYNC_RETRY_MS));
+          }
+        }
+        // Re-subscribing drops the optimistic local change, so this screen can't stay ahead of everyone else's.
+        setSyncRevision((revision) => revision + 1);
+        showToast('Could not save your change. Check your connection.', {
           label: 'Retry',
           onClick: () => void syncToFirestoreRef.current?.(op),
         });
         return null;
-      }
+      };
+      // One write at a time, in order, so a retried write can't land after a later one and undo it.
+      const result = syncQueueRef.current.then(run);
+      syncQueueRef.current = result;
+      return result;
     },
     [isSyncEnabled, showToast]
   );
@@ -506,6 +521,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const retryJoin = useCallback(() => {
     if (urlJoinCode) void joinSession(urlJoinCode);
+    else window.location.reload();
   }, [urlJoinCode, joinSession]);
 
   // Join session from URL on mount
@@ -529,7 +545,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       if (isSyncEnabled) {
         try {
-          const existing = await getFirestoreSession(code);
+          let existing: Session | null = null;
+          for (let attempt = 0; ; attempt++) {
+            try {
+              existing = await getFirestoreSession(code);
+              break;
+            } catch (err) {
+              if (attempt >= SYNC_ATTEMPTS - 1) throw err;
+              await new Promise((resolve) => setTimeout(resolve, SYNC_RETRY_MS));
+            }
+          }
           // A session this same hosted session ended stays ended, so a duplicate tab can't resurrect it.
           if (existing && !isFromEarlierSession(existing, hostedSessionId, Date.now())) {
             if (hostedSessionId && !existing.hostedSessionId && existing.hostUid === uid_) {
@@ -545,8 +570,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             replacing = true;
             if (!gg.config) cfg = existing.config;
           }
-        } catch {
-          // fall through to create a fresh room below
+        } catch (err) {
+          // Creating a fresh room here would reset a session that may already be running.
+          setJoinError(err instanceof Error ? err : new Error('Could not reach the session.'));
+          setSyncStatus('error');
+          return;
         }
       }
 
@@ -562,8 +590,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setSession(newSession);
       setQuestions([]);
       setView('hostControl');
+      let attempted = false;
       await syncToFirestore(async () => {
-        await createFirestoreSession(code, uid_!, cfg, hostedSessionId);
+        // An earlier attempt may have landed; writing it again would reset a room the host has already opened.
+        const landed = attempted && hostedSessionId
+          ? (await getFirestoreSession(code))?.hostedSessionId === hostedSessionId
+          : false;
+        attempted = true;
+        if (!landed) await createFirestoreSession(code, uid_!, cfg, hostedSessionId);
         // After the doc write, since the rules check the session doc's hostUid before allowing deletes.
         if (replacing) await clearFirestoreQuestions(code);
       });
@@ -682,9 +716,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setQuestions((prev) => prev.map((q) => (!q.answered ? { ...q, votes: 0 } : q)));
     }
 
+    // Votes are cleared before voting opens, so a retry can never wipe votes already cast this round.
     await syncToFirestore(async () => {
-      await updateFirestoreSessionPhase(session!.id!, uid_!, patch);
       await resetQuestionVotes(session!.id!);
+      await updateFirestoreSessionPhase(session!.id!, uid_!, patch);
     });
   };
 
