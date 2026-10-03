@@ -85,12 +85,9 @@ export interface Toast {
 
 // ── View names ───────────────────────────────────────────────────────
 export type ViewName =
-  | 'landing'
-  | 'hostSetup'
-  | 'hostReady'
+  | 'loading'
   | 'hostControl'
   | 'dashboard'
-  | 'employeeInvite'
   | 'employeeWelcome'
   | 'avatarSelect'
   | 'room'
@@ -136,7 +133,6 @@ export interface SessionContextValue {
   currentQuestion: Question | null;
   updateConfig: (patch: Partial<SessionConfig>) => void;
   setSessionMode: (mode: SessionMode) => void;
-  beginHostSetup: () => void;
   createSession: (config: SessionConfig) => Promise<void>;
   joinSession: (code: string) => Promise<void>;
   chooseAvatar: (avatarId: string) => void;

@@ -27,7 +27,6 @@ export default function HostControlView() {
     endSession,
     cancelSessionForAll,
     removeQuestion,
-    restartDemo,
     presenceCount,
     presenceTracked,
     ggSession,
@@ -138,11 +137,7 @@ export default function HostControlView() {
             <Button variant="ghost" fullWidth onClick={() => returnToGummyGum(ggSession.hubUrl)}>
               Back to GummyGum
             </Button>
-          ) : (
-            <Button variant="ghost" fullWidth onClick={restartDemo}>
-              Start a new session
-            </Button>
-          )}
+          ) : null}
 
           <Button variant="ghost" fullWidth onClick={() => setView('dashboard')}>
             Past sessions
@@ -170,15 +165,7 @@ export default function HostControlView() {
               </svg>
               Back to GummyGum
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setView('landing')}
-              className="font-mono text-xs uppercase tracking-wider font-bold text-ink hover:text-purple-deep cursor-pointer"
-            >
-              Exit
-            </button>
-          )}
+          ) : null}
         </div>
 
         {showCancelModal && (
