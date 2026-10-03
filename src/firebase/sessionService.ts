@@ -393,6 +393,23 @@ export async function updateFirestoreSessionPhase(
   return true;
 }
 
+/**
+ * Makes `uid` the session's host: the verified GummyGum host reopening in another browser signs in
+ * anonymously under a new uid. hostedSessionId is only sent to stamp a doc that has none yet.
+ */
+export async function takeOverFirestoreSessionHost(
+  sessionId: string,
+  uid: string,
+  hostedSessionId: string | null = null
+): Promise<void> {
+  if (!isFirebaseConfigured()) return;
+  await updateDoc(sessionRef(sessionId), {
+    hostUid: uid,
+    ...(hostedSessionId ? { hostedSessionId } : {}),
+    updatedAt: serverTimestamp(),
+  });
+}
+
 /** True when mid-flow with no host heartbeat, phase change or new question for hours. */
 export async function isFirestoreSessionAbandoned(sessionId: string): Promise<boolean> {
   if (!isFirebaseConfigured()) return false;

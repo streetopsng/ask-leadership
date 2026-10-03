@@ -289,4 +289,21 @@ describe('sessionService', () => {
       expect(mockUpdateDoc).not.toHaveBeenCalled()
     })
   })
+
+  describe('takeOverFirestoreSessionHost', () => {
+    it('writes only the new host uid when the session already has its hosted session id', async () => {
+      await mod.takeOverFirestoreSessionHost('AL-TEST', 'user-new')
+
+      const [, data] = mockUpdateDoc.mock.calls[0]
+      expect(Object.keys(data as Record<string, unknown>).sort()).toEqual(['hostUid', 'updatedAt'])
+      expect(data).toMatchObject({ hostUid: 'user-new' })
+    })
+
+    it('stamps the hosted session id on a session that has none', async () => {
+      await mod.takeOverFirestoreSessionHost('AL-TEST', 'user-new', 'hs-1')
+
+      const [, data] = mockUpdateDoc.mock.calls[0]
+      expect(data).toMatchObject({ hostUid: 'user-new', hostedSessionId: 'hs-1' })
+    })
+  })
 })

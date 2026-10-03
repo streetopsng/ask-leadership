@@ -152,7 +152,9 @@ describe('Host answering flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next question' }));
 
     await waitFor(() => expect(resetVotes).toHaveBeenCalledWith('AL-TEST'));
-    expect(updatePhase).toHaveBeenCalledWith('AL-TEST', 'host-1', { currentQuestionId: null, round: 2, phase: 'voting' });
+    await waitFor(() =>
+      expect(updatePhase).toHaveBeenCalledWith('AL-TEST', 'host-1', { currentQuestionId: null, round: 2, phase: 'voting' })
+    );
     expect(screen.getByTestId('phase').textContent).toBe('voting');
     expect(screen.getByTestId('round').textContent).toBe('2');
     expect(screen.getByTestId('current').textContent).toBe('none');

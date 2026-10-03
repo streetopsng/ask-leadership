@@ -25,11 +25,16 @@ service cloud.firestore {
 
       // Only the host can update session fields (phase, round, etc.)
       // A GummyGum re-run reuses the PIN, so a new hosted session's host may claim the doc.
+      // The host reopening a hub-hosted session in another browser has a new anonymous uid, so it may
+      // claim hostUid too, in a write that changes nothing else.
       allow update: if request.auth != null
         && (request.auth.uid == resource.data.hostUid
           || (request.resource.data.hostUid == request.auth.uid
             && request.resource.data.get('hostedSessionId', null) is string
-            && request.resource.data.hostedSessionId != resource.data.get('hostedSessionId', null)));
+            && request.resource.data.hostedSessionId != resource.data.get('hostedSessionId', null))
+          || (request.resource.data.hostUid == request.auth.uid
+            && resource.data.get('hostedSessionId', null) is string
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hostUid', 'updatedAt'])));
 
       // Anyone authenticated can read (for join-by-code)
       allow read: if request.auth != null;
