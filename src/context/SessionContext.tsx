@@ -10,6 +10,7 @@ import {
   voteFirestoreQuestion,
   markFirestoreQuestionAnswered,
   updateFirestoreSessionPhase,
+  takeOverFirestoreSessionHost,
   resetQuestionVotes,
   deleteFirestoreQuestion,
   isFirestoreSessionAbandoned,
@@ -557,6 +558,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           }
           // A session this same hosted session ended stays ended, so a duplicate tab can't resurrect it.
           if (existing && !isFromEarlierSession(existing, hostedSessionId, Date.now())) {
+            if (existing.hostUid !== uid_) {
+              // Same hosted session, different browser: anonymous auth gave this verified host a new uid.
+              const stamp = existing.hostedSessionId ? null : hostedSessionId;
+              for (let attempt = 0; ; attempt++) {
+                try {
+                  await takeOverFirestoreSessionHost(code, uid_!, stamp);
+                  break;
+                } catch (err) {
+                  const denied = (err as { code?: string }).code === 'permission-denied';
+                  if (denied || attempt >= SYNC_ATTEMPTS - 1) {
+                    throw new Error('Could not take control of this session from this browser.', { cause: err });
+                  }
+                  await new Promise((resolve) => setTimeout(resolve, SYNC_RETRY_MS));
+                }
+              }
+              existing.hostUid = uid_;
+              if (stamp) existing.hostedSessionId = stamp;
+            }
             if (hostedSessionId && !existing.hostedSessionId && existing.hostUid === uid_) {
               existing.hostedSessionId = hostedSessionId;
               await updateFirestoreSessionPhase(code, uid_!, { hostedSessionId });
@@ -572,6 +591,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           }
         } catch (err) {
           // Creating a fresh room here would reset a session that may already be running.
+          console.error('Could not resume the hosted session:', err);
           setJoinError(err instanceof Error ? err : new Error('Could not reach the session.'));
           setSyncStatus('error');
           return;
@@ -689,14 +709,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // A refused host write (the session's host uid is no longer ours) is undone on screen and said out loud.
+  const syncHostPhase = async (
+    patch: Parameters<typeof updateFirestoreSessionPhase>[2],
+    before?: () => Promise<unknown>
+  ) => {
+    const sessionId = session!.id!;
+    const ok = await syncToFirestore(async () => {
+      if (before) await before();
+      return updateFirestoreSessionPhase(sessionId, uid_!, patch);
+    });
+    if (ok === false) {
+      setSyncRevision((revision) => revision + 1);
+      showToast('This session is being run from another browser. Reopen it from GummyGum to take control here.');
+    }
+    return ok;
+  };
+
   const openSubmissions = async () => {
     patchSession({ phase: 'submitting' });
-    await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'submitting' }));
+    await syncHostPhase({ phase: 'submitting' });
   };
 
   const closeSubmissions = async () => {
     patchSession({ phase: 'closed' });
-    await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'closed' }));
+    await syncHostPhase({ phase: 'closed' });
   };
 
   const removeQuestion = async (qid: string) => {
@@ -717,10 +754,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
 
     // Votes are cleared before voting opens, so a retry can never wipe votes already cast this round.
-    await syncToFirestore(async () => {
-      await resetQuestionVotes(session!.id!);
-      await updateFirestoreSessionPhase(session!.id!, uid_!, patch);
-    });
+    const sessionId = session!.id!;
+    await syncHostPhase(patch, () => resetQuestionVotes(sessionId));
   };
 
   const startVoting = async () => {
@@ -755,12 +790,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     patchSession({ currentQuestionId: winner.id, phase: 'winner' });
 
-    await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { currentQuestionId: winner.id, phase: 'winner' }));
+    await syncHostPhase({ currentQuestionId: winner.id, phase: 'winner' });
   };
 
   const moveToAnswering = async () => {
     patchSession({ phase: 'answering' });
-    await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'answering' }));
+    await syncHostPhase({ phase: 'answering' });
   };
 
   const markAnswered = async () => {
@@ -784,7 +819,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (ggSession?.isHost && answeredCount === 0) {
       endHandledRef.current = true;
       await reportGummyGumCancel();
-      await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'ended', cancelled: true }));
+      await syncHostPhase({ phase: 'ended', cancelled: true });
       returnToGummyGum(ggSession.hubUrl);
       return;
     }
@@ -794,7 +829,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setClosingStep(remainingCount > 0 || answeredCount < submittedCount ? 0 : 1);
     setView('closing');
 
-    await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'ended', expireAt: sessionExpiry }));
+    const ok = await syncHostPhase({ phase: 'ended', expireAt: sessionExpiry });
+    if (ok === false) {
+      setView('hostControl');
+      return;
+    }
 
     // After the room shows 'ended': the report also ends the hub session, which participants watch for.
     if (ggSession?.isHost) {
@@ -812,7 +851,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!session?.id || !uid_) return;
     // The caller navigates to the hub once this write lands; don't race it from the ended effect.
     endHandledRef.current = true;
-    await syncToFirestore(() => updateFirestoreSessionPhase(session!.id!, uid_!, { phase: 'ended', cancelled: true }));
+    await syncHostPhase({ phase: 'ended', cancelled: true });
   };
 
   const restartDemo = () => {
